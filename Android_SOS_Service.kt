@@ -78,7 +78,10 @@ class CaneSosService : Service() {
         connectToCane()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == FallTriggerTest.ACTION_TEST_FALL) triggerSos()
+        return START_STICKY
+    }
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
@@ -157,7 +160,7 @@ class CaneSosService : Service() {
     //  SOS: grab GPS + send SMS with Google Maps URL
     // ---------------------------------------------------------------------
     @SuppressLint("MissingPermission")
-    private fun triggerSos() {
+    internal fun triggerSos() {
         val now = System.currentTimeMillis()
         if (now - lastSmsAt < SMS_COOLDOWN_MS) return
         lastSmsAt = now
