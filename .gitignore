@@ -1,0 +1,17 @@
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Vision log (generated at runtime, not source code)
+vision.log
+
+# VS Code
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
