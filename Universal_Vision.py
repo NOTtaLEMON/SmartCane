@@ -49,11 +49,17 @@ def pick_device() -> str:
 def label_for(class_name: str) -> str:
     """Map YOLO's 80 COCO classes -> the 3 semantic buckets the cane cares about."""
     if class_name in {"car", "bus", "truck", "motorcycle"}:
-        return "Car"
+        return "Vehicle"
     if class_name == "person":
         return "Person"
-    if class_name in TARGET_CLASSES:
-        return GENERIC_OBSTACLE
+    if class_name == "bicycle":
+        return "Bicycle"
+    if class_name == "dog":
+        return "Dog"
+    if class_name in {"bench", "chair"}:
+        return "Furniture"
+    if class_name in {"traffic light", "stop sign"}:
+        return "TrafficSign"
     return ""  # ignored
 
 
@@ -68,46 +74,58 @@ def run(src: str, model_path: str, conf: float, show: bool) -> None:
         print(f"[vision] ERROR: could not open stream {src}", file=sys.stderr)
         sys.exit(1)
 
-    last_print = 0.0
-    while True:
-        ok, frame = cap.read()
-        if not ok:
-            print("[vision] frame grab failed, retrying...", flush=True)
-            time.sleep(0.5)
-            continue
+    # Open log file for writing
+    log_file = open("vision.log", "a")
 
-        # YOLO inference
-        results = model.predict(frame, device=device, conf=conf, verbose=False)
-        r = results[0]
+    try:
+        last_print = 0.0
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                print("[vision] frame grab failed, retrying...", flush=True)
+                time.sleep(0.5)
+                continue
 
-        # Collect labels this frame
-        detections: list[tuple[str, float]] = []
-        for box in r.boxes:
-            cls_id = int(box.cls[0])
-            cls_name = model.names[cls_id]
-            mapped = label_for(cls_name)
-            if mapped:
-                detections.append((mapped, float(box.conf[0])))
+            # YOLO inference
+            results = model.predict(frame, device=device, conf=conf, verbose=False)
+            r = results[0]
 
-        # Throttle console output to ~5 Hz so the dashboard parser isn't flooded
-        now = time.time()
-        if detections and now - last_print > 0.2:
-            # Format: "VISION|Car:0.82,Person:0.91"
-            payload = ",".join(f"{name}:{conf:.2f}" for name, conf in detections)
-            print(f"VISION|{payload}", flush=True)
-            last_print = now
+            # Collect labels this frame
+            detections: list[tuple[str, float]] = []
+            for box in r.boxes:
+                cls_id = int(box.cls[0])
+                cls_name = model.names[cls_id]
+                mapped = label_for(cls_name)
+                if mapped:
+                    detections.append((mapped, float(box.conf[0])))
 
-        # VIBECODER: push `detections` into a socket/queue for Module D here.
+            # Throttle console output to ~5 Hz so the dashboard parser isn't flooded
+            now = time.time()
+            if detections and now - last_print > 0.2:
+                # Format: "VISION|Car:0.82,Person:0.91"
+                payload = ",".join(f"{name}:{conf:.2f}" for name, conf in detections)
+                output_line = f"VISION|{payload}"
+                print(output_line, flush=True)
+                log_file.write(output_line + "\n")
+                log_file.flush()
+                last_print = now
 
+            # VIBECODER: push `detections` into a socket/queue for Module D here.
+
+            if show:
+                annotated = r.plot()
+                cv2.imshow("Smart Cane Vision", annotated)
+                if cv2.waitKey(1) & 0xFF == ord("q"):
+                    break
+    except KeyboardInterrupt:
+        print("[vision] Interrupted by user", flush=True)
+    except Exception as e:
+        print(f"[vision] Error: {e}", file=sys.stderr)
+    finally:
+        cap.release()
+        log_file.close()
         if show:
-            annotated = r.plot()
-            cv2.imshow("Smart Cane Vision", annotated)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
-
-    cap.release()
-    if show:
-        cv2.destroyAllWindows()
+            cv2.destroyAllWindows()
 
 
 def main() -> None:
