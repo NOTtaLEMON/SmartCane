@@ -15,3 +15,8 @@ vision.log
 # OS
 Thumbs.db
 .DS_Store
+
+# Local reference docs (not source code)
+Project_Overview.html
+Smart Cane Clip-On *.pdf
+*.pdf
