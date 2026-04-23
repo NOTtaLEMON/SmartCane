@@ -9,6 +9,11 @@
  Output    : Prints detected objects of interest to the console so Module D
              (Dashboard) can pick them up via stdout / file / socket.
 
+ IP WEBCAM SETUP:
+     1. Install "IP Webcam" app on Android phone
+     2. Start the app and get the video URL
+     3. Run: python Universal_Vision.py --src http://192.168.1.5:8080/video
+
  INSTALL:
      pip install ultralytics opencv-python
 
@@ -24,6 +29,7 @@
 from __future__ import annotations
 
 import argparse
+import platform
 import sys
 import time
 from pathlib import Path
@@ -66,26 +72,65 @@ def label_for(class_name: str) -> str:
 def run(src: str, model_path: str, conf: float, show: bool) -> None:
     device = pick_device()
     print(f"[vision] device={device}  src={src}  model={model_path}", flush=True)
+    
+    # Detect if using IP Webcam
+    is_ip_webcam = src.startswith("http://") or src.startswith("rtsp://")
+    if is_ip_webcam:
+        print(f"[vision] Connecting to IP Webcam: {src}", flush=True)
+    elif platform.system() == "Darwin":
+        print("[vision] Detected macOS - configuring camera access", flush=True)
 
     model = YOLO(model_path)
 
+    # Try to open camera with macOS-specific settings
     cap = cv2.VideoCapture(src if not src.isdigit() else int(src))
+    
+    # Set for macOS: request proper camera backend
+    if platform.system() == "Darwin" and src.isdigit():
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce buffer on macOS
+        cap.set(cv2.CAP_PROP_FPS, 30)
+    
     if not cap.isOpened():
         print(f"[vision] ERROR: could not open stream {src}", file=sys.stderr)
+        print(f"[vision] Platform: {platform.system()}", file=sys.stderr)
+        if is_ip_webcam:
+            print(f"[vision] Check IP Webcam app is running and URL is correct", file=sys.stderr)
+            print(f"[vision] Make sure phone and computer are on same network", file=sys.stderr)
+        else:
+            print(f"[vision] Make sure camera has permissions on macOS: System Preferences > Security & Privacy > Camera", file=sys.stderr)
         sys.exit(1)
+
+    # Verify camera is working
+    ret, frame = cap.read()
+    if not ret:
+        print("[vision] ERROR: could not read from camera", file=sys.stderr)
+        cap.release()
+        sys.exit(1)
+    print(f"[vision] Camera opened successfully - frame size: {frame.shape}", flush=True)
+    if is_ip_webcam:
+        print(f"[vision] IP Webcam stream active - ready for object detection", flush=True)
 
     # Open log file for writing
     log_file = open("vision.log", "a")
 
     try:
         last_print = 0.0
+        frame_count = 0
+        first_frame = True
+        
         while True:
-            ok, frame = cap.read()
-            if not ok:
-                print("[vision] frame grab failed, retrying...", flush=True)
-                time.sleep(0.5)
-                continue
+            if first_frame:
+                # Use the frame we already read for verification
+                first_frame = False
+            else:
+                ok, frame = cap.read()
+                if not ok:
+                    print("[vision] frame grab failed, retrying...", flush=True)
+                    time.sleep(0.5)
+                    continue
 
+            frame_count += 1
+            
             # YOLO inference
             results = model.predict(frame, device=device, conf=conf, verbose=False)
             r = results[0]
@@ -109,14 +154,23 @@ def run(src: str, model_path: str, conf: float, show: bool) -> None:
                 log_file.write(output_line + "\n")
                 log_file.flush()
                 last_print = now
+            
+            # Periodic status update every 100 frames
+            if frame_count % 100 == 0:
+                print(f"[vision] Status: {frame_count} frames processed", flush=True)
 
             # VIBECODER: push `detections` into a socket/queue for Module D here.
 
             if show:
-                annotated = r.plot()
-                cv2.imshow("Smart Cane Vision", annotated)
-                if cv2.waitKey(1) & 0xFF == ord("q"):
-                    break
+                try:
+                    annotated = r.plot()
+                    # macOS-safe window display
+                    cv2.imshow("Smart Cane Vision", annotated)
+                    if cv2.waitKey(1) & 0xFF == ord("q"):
+                        break
+                except Exception as e:
+                    print(f"[vision] Display warning (headless mode?): {e}", file=sys.stderr)
+                    show = False  # Disable display for this session
     except KeyboardInterrupt:
         print("[vision] Interrupted by user", flush=True)
     except Exception as e:

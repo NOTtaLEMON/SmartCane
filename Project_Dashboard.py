@@ -7,6 +7,12 @@
              from Module C, plot live graphs. Has a "Mock Mode" toggle so
              the team can develop UI without the hardware plugged in.
 
+ IP WEBCAM INTEGRATION:
+     1. Install "IP Webcam" app on Android phone
+     2. Start the app and note the IP address (e.g., 192.168.1.5:8080)
+     3. Enter URL in dashboard: http://192.168.1.5:8080/video
+     4. Click "▶ Start Vision" to launch object detection
+
  PACKET FORMAT (from ESP32 over Serial @ 115200 baud):
      "dist_fwd,dist_drop,fall_flag,light_val"   e.g. "045,180,0,550"
 
@@ -21,6 +27,8 @@
 from __future__ import annotations
 
 import random
+import subprocess
+import sys
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -136,6 +144,54 @@ with st.sidebar:
             port = st.selectbox("Serial Port", ports or ["(none detected)"])
         baud = st.number_input("Baud", value=115200, step=9600)
 
+    st.header("🎥 IP Webcam Vision")
+    ip_webcam_url = st.text_input("IP Webcam URL", value="http://192.168.1.100:8080/video",
+                                  help="URL from IP Webcam app (e.g., http://192.168.1.5:8080/video)")
+    vision_model = st.selectbox("YOLO Model", ["yolov8n.pt", "yolov8s.pt", "yolov8m.pt"],
+                                help="Smaller models are faster but less accurate")
+    vision_conf = st.slider("Confidence Threshold", 0.1, 0.9, 0.45, 0.05)
+
+    # Vision process control
+    if "vision_process" not in st.session_state:
+        st.session_state.vision_process = None
+
+    col_start, col_stop = st.columns(2)
+    with col_start:
+        if st.button("▶ Start Vision", type="primary"):
+            if st.session_state.vision_process is None:
+                try:
+                    # Launch Universal_Vision.py as separate process
+                    cmd = [sys.executable, "Universal_Vision.py",
+                           "--src", ip_webcam_url,
+                           "--model", vision_model,
+                           "--conf", str(vision_conf)]
+                    st.session_state.vision_process = subprocess.Popen(cmd)
+                    st.success("Vision module started!")
+                    time.sleep(2)  # Give it time to initialize
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to start vision: {e}")
+            else:
+                st.warning("Vision is already running")
+
+    with col_stop:
+        if st.button("⏹ Stop Vision"):
+            if st.session_state.vision_process is not None:
+                try:
+                    st.session_state.vision_process.terminate()
+                    st.session_state.vision_process.wait(timeout=5)
+                    st.session_state.vision_process = None
+                    st.success("Vision module stopped!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to stop vision: {e}")
+            else:
+                st.info("Vision is not running")
+
+    # Show vision status
+    vision_status = "🟢 Running" if st.session_state.vision_process else "🔴 Stopped"
+    st.caption(f"Status: {vision_status}")
+
     st.header("Vision overlay")
     vision_log = st.text_input("Path to Module C log", value="vision.log")
 
@@ -208,3 +264,14 @@ if src is not None:
     st.rerun()
 else:
     st.warning("Stream paused. Toggle **▶ Start stream** in the sidebar.")
+
+# Cleanup vision process on app exit
+import atexit
+@atexit.register
+def cleanup_vision():
+    if "vision_process" in st.session_state and st.session_state.vision_process:
+        try:
+            st.session_state.vision_process.terminate()
+            st.session_state.vision_process.wait(timeout=2)
+        except:
+            pass
