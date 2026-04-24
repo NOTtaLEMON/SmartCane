@@ -44,6 +44,126 @@ try:
 except Exception:
     HAS_SERIAL = False
 
+# ---------------------------------------------------------------------------
+#  Visual helpers
+# ---------------------------------------------------------------------------
+OBJECT_EMOJI: dict[str, str] = {
+    "person": "🧑", "car": "🚗", "truck": "🚚", "bus": "🚌",
+    "bicycle": "🚲", "motorcycle": "🏍️", "dog": "🐕", "cat": "🐈",
+    "chair": "🪑", "bench": "🪑", "bottle": "🍾", "cup": "☕",
+    "traffic light": "🚦", "stop sign": "🛑", "fire hydrant": "🚒",
+    "backpack": "🎒", "umbrella": "☂️", "handbag": "👜", "cell phone": "📱",
+}
+
+def obj_emoji(label: str) -> str:
+    return OBJECT_EMOJI.get(label.lower(), "📦")
+
+def mm_to_readable(mm: int) -> tuple[str, str]:
+    """Return (human-readable string, zone colour)."""
+    cm = mm / 10
+    if cm < 30:
+        return f"{cm:.0f} cm", "#ff4b4b"      # critical – red
+    elif cm < 80:
+        return f"{cm:.0f} cm", "#ffa733"      # warning – orange
+    elif cm < 150:
+        return f"{cm:.1f} cm", "#f6c000"      # caution – yellow
+    else:
+        m = mm / 1000
+        return f"{m:.2f} m", "#21c55d"        # safe – green
+
+def zone_label(mm: int) -> str:
+    cm = mm / 10
+    if cm < 30:   return "CRITICAL"
+    if cm < 80:   return "WARNING"
+    if cm < 150:  return "CAUTION"
+    return "CLEAR"
+
+def lux_label(val: int) -> tuple[str, str]:
+    if val < 200:   return "Very Dark 🌑", "#6366f1"
+    if val < 500:   return "Dim 🌘",        "#a78bfa"
+    if val < 800:   return "Moderate 🌤️",  "#38bdf8"
+    return "Bright ☀️",                     "#facc15"
+
+def parse_vision_line(raw: str) -> list[tuple[str, float]]:
+    """Parse 'Person:0.91,Car:0.82' → [('Person', 0.91), ('Car', 0.82)]"""
+    results = []
+    for token in raw.split(","):
+        token = token.strip()
+        if ":" in token:
+            label, _, conf_str = token.partition(":")
+            try:
+                results.append((label.strip(), float(conf_str.strip())))
+            except ValueError:
+                pass
+    return sorted(results, key=lambda x: x[1], reverse=True)
+
+def confidence_bar_html(label: str, conf: float) -> str:
+    pct = int(conf * 100)
+    emoji = obj_emoji(label)
+    if pct >= 85:   bar_color = "#21c55d"
+    elif pct >= 65: bar_color = "#f6c000"
+    else:           bar_color = "#ffa733"
+    return f"""
+<div style="
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.10);
+    border-radius:10px;
+    padding:10px 14px;
+    margin-bottom:8px;
+    font-family:'Segoe UI',sans-serif;
+">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+    <span style="font-size:1.1rem;font-weight:600;color:#e2e8f0;">
+      {emoji}&nbsp;&nbsp;{label.title()}
+    </span>
+    <span style="font-size:0.9rem;font-weight:700;color:{bar_color};">{pct}% conf.</span>
+  </div>
+  <div style="background:rgba(255,255,255,0.10);border-radius:6px;height:8px;overflow:hidden;">
+    <div style="width:{pct}%;height:100%;background:{bar_color};
+                border-radius:6px;transition:width 0.4s ease;"></div>
+  </div>
+</div>"""
+
+def sensor_card_html(title: str, value: str, subtitle: str, color: str, icon: str) -> str:
+    return f"""
+<div style="
+    background:linear-gradient(135deg,rgba(255,255,255,0.06) 0%,rgba(255,255,255,0.02) 100%);
+    border:1px solid {color}55;
+    border-left:4px solid {color};
+    border-radius:12px;
+    padding:16px 18px;
+    font-family:'Segoe UI',sans-serif;
+    margin-bottom:4px;
+">
+  <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.2px;
+              color:{color};opacity:0.85;margin-bottom:4px;">{icon}&nbsp;{title}</div>
+  <div style="font-size:2rem;font-weight:700;color:#f1f5f9;line-height:1.1;">{value}</div>
+  <div style="font-size:0.78rem;color:#94a3b8;margin-top:4px;">{subtitle}</div>
+</div>"""
+
+def fall_banner_html(active: bool) -> str:
+    if active:
+        return """<div style="
+            background:linear-gradient(90deg,#dc2626,#b91c1c);
+            border-radius:12px;padding:14px 20px;
+            font-family:'Segoe UI',sans-serif;
+            animation:pulse 1s infinite;
+            text-align:center;
+            font-size:1.3rem;font-weight:700;color:#fff;
+            letter-spacing:1px;margin-bottom:10px;
+            box-shadow:0 0 20px #dc262688;">
+            ⚠️&nbsp;&nbsp;FALL DETECTED — ALERT TRIGGERED&nbsp;&nbsp;⚠️
+        </div>"""
+    return """<div style="
+        background:rgba(34,197,94,0.08);
+        border:1px solid rgba(34,197,94,0.25);
+        border-radius:12px;padding:10px 20px;
+        font-family:'Segoe UI',sans-serif;
+        text-align:center;font-size:0.9rem;color:#86efac;
+        margin-bottom:10px;">
+        ✅&nbsp;&nbsp;No fall detected &nbsp;—&nbsp; IMU stable
+    </div>"""
+
 
 # ---------------------------------------------------------------------------
 #  Data model
@@ -128,11 +248,44 @@ def read_latest_vision(file: Path) -> str:
 # ---------------------------------------------------------------------------
 #  Streamlit UI
 # ---------------------------------------------------------------------------
-st.set_page_config(page_title="Smart Cane Dashboard", layout="wide")
-st.title("🦯 Smart Cane Clip-On — Master Dashboard")
+st.set_page_config(page_title="Smart Cane Dashboard", layout="wide", page_icon="🦯")
+
+# ---- Global CSS ----
+st.markdown("""
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  html, body, [class*="css"] { font-family: 'Inter', 'Segoe UI', sans-serif; }
+  .block-container { padding-top: 1.5rem; }
+  h1 { font-size: 1.65rem !important; font-weight: 700 !important; }
+  .section-label {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.4px;
+    color: #64748b; margin-bottom: 6px; margin-top: 18px;
+  }
+  .divider { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 14px 0; }
+</style>
+""", unsafe_allow_html=True)
+
+# ---- Header ----
+st.markdown("""
+<div style="display:flex;align-items:center;gap:14px;margin-bottom:6px;">
+  <span style="font-size:2.4rem;">🦯</span>
+  <div>
+    <div style="font-size:1.5rem;font-weight:700;color:#f1f5f9;line-height:1.1;">
+      Smart Cane Clip-On
+    </div>
+    <div style="font-size:0.82rem;color:#64748b;letter-spacing:0.5px;">
+      Real-time obstacle detection &amp; fall monitoring dashboard
+    </div>
+  </div>
+</div>
+<hr class="divider">
+""", unsafe_allow_html=True)
 
 with st.sidebar:
-    st.header("Source")
+    st.markdown('<div style="font-size:1.1rem;font-weight:700;color:#f1f5f9;">⚙️ Configuration</div>', unsafe_allow_html=True)
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+
+    st.markdown('<div class="section-label">Data source</div>', unsafe_allow_html=True)
     mock_mode = st.toggle("Mock Mode (no hardware)", value=not HAS_SERIAL)
 
     port = None
@@ -144,58 +297,57 @@ with st.sidebar:
             port = st.selectbox("Serial Port", ports or ["(none detected)"])
         baud = st.number_input("Baud", value=115200, step=9600)
 
-    st.header("🎥 IP Webcam Vision")
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">🎥 Vision module</div>', unsafe_allow_html=True)
     ip_webcam_url = st.text_input("IP Webcam URL", value="http://192.168.1.100:8080/video",
                                   help="URL from IP Webcam app (e.g., http://192.168.1.5:8080/video)")
     vision_model = st.selectbox("YOLO Model", ["yolov8n.pt", "yolov8s.pt", "yolov8m.pt"],
                                 help="Smaller models are faster but less accurate")
     vision_conf = st.slider("Confidence Threshold", 0.1, 0.9, 0.45, 0.05)
 
-    # Vision process control
     if "vision_process" not in st.session_state:
         st.session_state.vision_process = None
 
     col_start, col_stop = st.columns(2)
     with col_start:
-        if st.button("▶ Start Vision", type="primary"):
+        if st.button("▶ Start", type="primary", use_container_width=True):
             if st.session_state.vision_process is None:
                 try:
-                    # Launch Universal_Vision.py as separate process
                     cmd = [sys.executable, "Universal_Vision.py",
                            "--src", ip_webcam_url,
                            "--model", vision_model,
                            "--conf", str(vision_conf)]
                     st.session_state.vision_process = subprocess.Popen(cmd)
-                    st.success("Vision module started!")
-                    time.sleep(2)  # Give it time to initialize
+                    st.success("Vision started!")
+                    time.sleep(2)
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Failed to start vision: {e}")
+                    st.error(f"Failed: {e}")
             else:
-                st.warning("Vision is already running")
-
+                st.warning("Already running")
     with col_stop:
-        if st.button("⏹ Stop Vision"):
+        if st.button("⏹ Stop", use_container_width=True):
             if st.session_state.vision_process is not None:
                 try:
                     st.session_state.vision_process.terminate()
                     st.session_state.vision_process.wait(timeout=5)
                     st.session_state.vision_process = None
-                    st.success("Vision module stopped!")
+                    st.success("Stopped!")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Failed to stop vision: {e}")
+                    st.error(f"Failed: {e}")
             else:
-                st.info("Vision is not running")
+                st.info("Not running")
 
-    # Show vision status
-    vision_status = "🟢 Running" if st.session_state.vision_process else "🔴 Stopped"
-    st.caption(f"Status: {vision_status}")
+    vis_running = st.session_state.vision_process is not None
+    st.markdown(
+        f'<div style="text-align:center;font-size:0.8rem;color:{"#21c55d" if vis_running else "#ef4444"};">'
+        f'{"🟢 Vision active" if vis_running else "🔴 Vision offline"}</div>',
+        unsafe_allow_html=True)
 
-    st.header("Vision overlay")
-    vision_log = st.text_input("Path to Module C log", value="vision.log")
-
-    st.header("Display")
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Display</div>', unsafe_allow_html=True)
+    vision_log = st.text_input("Vision log path", value="vision.log")
     window = st.slider("History window (samples)", 50, 500, 150)
     start = st.toggle("▶ Start stream", value=True)
 
@@ -215,19 +367,50 @@ if start:
         except Exception as e:
             st.error(f"Could not open {port}: {e}")
 
-# --- Layout ---
-col1, col2, col3, col4 = st.columns(4)
-m_fwd  = col1.empty()
-m_drop = col2.empty()
-m_fall = col3.empty()
-m_lux  = col4.empty()
+# ---------------------------------------------------------------------------
+#  Layout placeholders
+# ---------------------------------------------------------------------------
+fall_banner_ph = st.empty()
 
-vision_box = st.empty()
-chart_fwd  = st.empty()
-chart_drop = st.empty()
-chart_lux  = st.empty()
+# Row 1: sensor cards
+st.markdown('<div class="section-label">📡 Sensor Readings</div>', unsafe_allow_html=True)
+sensor_cols = st.columns(4)
+card_fwd   = sensor_cols[0].empty()
+card_drop  = sensor_cols[1].empty()
+card_fall  = sensor_cols[2].empty()
+card_lux   = sensor_cols[3].empty()
 
-# --- Main loop (Streamlit reruns; we loop for ~150 samples per rerun) ---
+st.markdown('<hr class="divider">', unsafe_allow_html=True)
+
+# Row 2: detections (left) + proximity gauge (right)
+det_col, prox_col = st.columns([3, 2])
+
+with det_col:
+    st.markdown('<div class="section-label">🎥 Object Detection</div>', unsafe_allow_html=True)
+    detection_ph = st.empty()
+
+with prox_col:
+    st.markdown('<div class="section-label">📏 Proximity Assessment</div>', unsafe_allow_html=True)
+    proximity_ph = st.empty()
+
+st.markdown('<hr class="divider">', unsafe_allow_html=True)
+
+# Row 3: charts
+st.markdown('<div class="section-label">📈 Sensor History</div>', unsafe_allow_html=True)
+ch_col1, ch_col2, ch_col3 = st.columns(3)
+with ch_col1:
+    st.caption("Forward Distance (mm)")
+    chart_fwd  = st.empty()
+with ch_col2:
+    st.caption("Drop Distance (mm)")
+    chart_drop = st.empty()
+with ch_col3:
+    st.caption("Ambient Light")
+    chart_lux  = st.empty()
+
+# ---------------------------------------------------------------------------
+#  Main update loop
+# ---------------------------------------------------------------------------
 if src is not None:
     st.session_state.hist = deque(list(st.session_state.hist)[-window:], maxlen=500)
 
@@ -236,31 +419,127 @@ if src is not None:
         if pkt is None:
             time.sleep(0.05)
             continue
+
         st.session_state.hist.append({
             "t": time.time(),
-            "fwd": pkt.dist_fwd,
+            "fwd":  pkt.dist_fwd,
             "drop": pkt.dist_drop,
             "fall": pkt.fall_flag,
-            "lux": pkt.light_val,
+            "lux":  pkt.light_val,
         })
-
         df = pd.DataFrame(list(st.session_state.hist)[-window:])
 
-        m_fwd.metric("Front dist (mm)", pkt.dist_fwd)
-        m_drop.metric("Drop dist (mm)", pkt.dist_drop)
-        m_fall.metric("Fall", "⚠ YES" if pkt.fall_flag else "ok")
-        m_lux.metric("Light", pkt.light_val)
+        # ---- Fall banner ----
+        fall_banner_ph.markdown(fall_banner_html(bool(pkt.fall_flag)), unsafe_allow_html=True)
 
-        vision_txt = read_latest_vision(Path(vision_log))
-        vision_box.info(f"🎥 Vision: {vision_txt or '(no detections yet)'}")
+        # ---- Sensor cards ----
+        fwd_str,  fwd_color  = mm_to_readable(pkt.dist_fwd)
+        drop_str, drop_color = mm_to_readable(pkt.dist_drop)
+        lux_str,  lux_color  = lux_label(pkt.light_val)
 
+        card_fwd.markdown(sensor_card_html(
+            "Front Obstacle", fwd_str,
+            f"Zone: {zone_label(pkt.dist_fwd)}",
+            fwd_color, "↔️"), unsafe_allow_html=True)
+
+        card_drop.markdown(sensor_card_html(
+            "Drop / Ledge", drop_str,
+            f"Zone: {zone_label(pkt.dist_drop)}",
+            drop_color, "⬇️"), unsafe_allow_html=True)
+
+        fall_color = "#ff4b4b" if pkt.fall_flag else "#21c55d"
+        card_fall.markdown(sensor_card_html(
+            "Fall Status",
+            "⚠️ FALL" if pkt.fall_flag else "Stable",
+            "IMU / accelerometer",
+            fall_color, "🏃"), unsafe_allow_html=True)
+
+        card_lux.markdown(sensor_card_html(
+            "Ambient Light", lux_str,
+            f"Raw ADC: {pkt.light_val}",
+            lux_color, "💡"), unsafe_allow_html=True)
+
+        # ---- Vision detections ----
+        vision_raw = read_latest_vision(Path(vision_log))
+        detections = parse_vision_line(vision_raw) if vision_raw else []
+
+        if detections:
+            bars_html = "".join(confidence_bar_html(lbl, conf) for lbl, conf in detections[:6])
+            detection_ph.markdown(f"""
+<div style="padding:4px 0;">{bars_html}</div>
+<div style="font-size:0.72rem;color:#475569;margin-top:6px;">
+  Last update: {time.strftime('%H:%M:%S')} &nbsp;·&nbsp; {len(detections)} object(s) in frame
+</div>
+""", unsafe_allow_html=True)
+        else:
+            detection_ph.markdown("""
+<div style="
+  background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.10);
+  border-radius:12px;padding:28px;text-align:center;color:#475569;font-size:0.9rem;">
+  No objects currently detected<br>
+  <span style="font-size:0.75rem;">Waiting for vision module output…</span>
+</div>""", unsafe_allow_html=True)
+
+        # ---- Proximity assessment panel ----
+        top_obj  = detections[0][0].title() if detections else "Unknown"
+        top_emoji = obj_emoji(detections[0][0]) if detections else "📦"
+        fwd_pct  = max(0, min(100, int((1 - pkt.dist_fwd / 2000) * 100)))  # 0mm=100%, 2000mm+=0%
+        zone     = zone_label(pkt.dist_fwd)
+        fwd_c, _ = mm_to_readable(pkt.dist_fwd)
+
+        zone_colors = {"CRITICAL": "#ff4b4b", "WARNING": "#ffa733", "CAUTION": "#f6c000", "CLEAR": "#21c55d"}
+        zc = zone_colors.get(zone, "#21c55d")
+
+        proximity_ph.markdown(f"""
+<div style="
+  background:linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01));
+  border:1px solid {zc}44;border-radius:14px;padding:20px 18px;
+  font-family:'Segoe UI',sans-serif;
+">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+      <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:#64748b;">
+        Nearest Obstacle
+      </div>
+      <div style="font-size:2.2rem;font-weight:700;color:#f1f5f9;margin:4px 0;">{fwd_c}</div>
+      <div style="font-size:0.85rem;color:#94a3b8;">straight ahead</div>
+    </div>
+    <div style="
+      background:{zc}22;border:2px solid {zc};
+      border-radius:10px;padding:6px 14px;
+      font-size:0.8rem;font-weight:700;color:{zc};letter-spacing:1px;">
+      {zone}
+    </div>
+  </div>
+  <div style="margin-top:16px;">
+    <div style="font-size:0.7rem;color:#64748b;margin-bottom:5px;">PROXIMITY LEVEL</div>
+    <div style="background:rgba(255,255,255,0.08);border-radius:8px;height:12px;overflow:hidden;">
+      <div style="width:{fwd_pct}%;height:100%;
+        background:linear-gradient(90deg,#21c55d,{zc});
+        border-radius:8px;transition:width 0.4s ease;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;
+      font-size:0.65rem;color:#475569;margin-top:4px;">
+      <span>Far</span><span>Close</span>
+    </div>
+  </div>
+  {"" if not detections else f'''
+  <div style="margin-top:14px;border-top:1px solid rgba(255,255,255,0.07);padding-top:12px;">
+    <div style="font-size:0.7rem;color:#64748b;margin-bottom:4px;">MOST LIKELY OBJECT</div>
+    <div style="font-size:1.05rem;font-weight:600;color:#e2e8f0;">
+      {top_emoji}&nbsp;&nbsp;{top_obj}
+    </div>
+  </div>'''}
+</div>
+""", unsafe_allow_html=True)
+
+        # ---- Charts ----
         if not df.empty:
-            chart_fwd.line_chart(df.set_index("t")[["fwd"]],  height=180)
-            chart_drop.line_chart(df.set_index("t")[["drop"]], height=180)
-            chart_lux.line_chart(df.set_index("t")[["lux"]],  height=180)
+            chart_fwd.line_chart(df.set_index("t")[["fwd"]],   height=160, color=["#38bdf8"])
+            chart_drop.line_chart(df.set_index("t")[["drop"]],  height=160, color=["#a78bfa"])
+            chart_lux.line_chart(df.set_index("t")[["lux"]],   height=160, color=["#facc15"])
 
     src.close()
-    # Re-trigger Streamlit to keep streaming
     st.rerun()
 else:
     st.warning("Stream paused. Toggle **▶ Start stream** in the sidebar.")
