@@ -1,201 +1,130 @@
 /*
  * ============================================================================
- *  SMART CANE CLIP-ON  |  MODULE A: ESP32 FIRMWARE ("Reflexes")
+ *  SMART CANE CLIP-ON  |  ESP32 FIRMWARE
  * ============================================================================
- *  Tech      : C++ / Arduino (ESP32)
- *  Sensors   : 2x VL53L0X (ToF), MPU9052 (IMU), LDR (analog)
- *  Outputs   : 2x Vibration Motors, I2C OLED (SSD1306)
+ *  Hardware (actual):
+ *    - 1x VL53L0X ToF (forward distance)
+ *    - 16x2 LCD via I2C (LiquidCrystal_I2C @ 0x27)
+ *    - LED         -> GPIO 2
+ *    - Buzzer      -> GPIO 4
+ *    - LDR (analog)-> GPIO 34
+ *    - I2C SDA     -> GPIO 21
+ *    - I2C SCL     -> GPIO 22
  *
- *  DATA PROTOCOL (NON-NEGOTIABLE):
+ *  DATA PROTOCOL (NON-NEGOTIABLE -- matches dashboard parser):
  *      "dist_fwd,dist_drop,fall_flag,light_val"
- *      Example: "045,180,0,550"
- *
- *  WIRING QUICK REF (change if your PCB differs)
- *  ---------------------------------------------
- *    I2C SDA          -> GPIO 21
- *    I2C SCL          -> GPIO 22
- *    VL53 FWD XSHUT   -> GPIO 16   (disabled during init of DROP sensor)
- *    VL53 DROP XSHUT  -> GPIO 17
- *    Motor LEFT       -> GPIO 25   (PWM)
- *    Motor RIGHT      -> GPIO 26   (PWM)
- *    LDR (analog)     -> GPIO 34
+ *      e.g. "045,000,0,0550"
+ *      dist_drop = 000  (no drop sensor on this build)
+ *      fall_flag = 0    (no IMU on this build)
  *
  *  LIBRARIES NEEDED (Arduino Library Manager):
- *    - Adafruit_VL53L0X
- *    - Adafruit_MPU6050  (works for MPU9052, drop-in)
- *    - Adafruit_SSD1306
- *    - Adafruit_GFX
+ *    - Adafruit VL53L0X
+ *    - LiquidCrystal I2C  (by Frank de Brabander)
  * ============================================================================
  */
 
 #include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 #include <Adafruit_VL53L0X.h>
-#include <Adafruit_MPU6050.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_SSD1306.h>
 
 // ---------- PIN MAP ----------
-#define XSHUT_FWD   16
-#define XSHUT_DROP  17
-#define MOTOR_L     25
-#define MOTOR_R     26
+#define LED_PIN     2
+#define BUZZER_PIN  4
 #define LDR_PIN     34
 
-// ---------- I2C ADDRESSES ----------
-#define ADDR_VL53_FWD   0x30
-#define ADDR_VL53_DROP  0x31
-
 // ---------- TUNING ----------
-#define LOOP_MS          100     // 10 Hz packet rate
-#define FALL_ACCEL_G     2.5f    // > this = possible fall
-#define MOTION_DELTA_MM  30      // change required to count as "approaching"
-#define OBSTACLE_FWD_MM  500     // buzz when closer than this
-#define DROP_DIFF_MM     150     // buzz when drop exceeds this
+#define LDR_DARK_THRESHOLD  700   // below this = dark -> LED on
+#define LOOP_MS             100   // 10 Hz packet rate
 
-// ---------- GLOBAL OBJECTS ----------
-Adafruit_VL53L0X loxFwd  = Adafruit_VL53L0X();
-Adafruit_VL53L0X loxDrop = Adafruit_VL53L0X();
-Adafruit_MPU6050 mpu;
-Adafruit_SSD1306 oled(128, 64, &Wire, -1);
+// ---------- OBJECTS ----------
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 
-// ---------- STATE ----------
-uint16_t prevFwd  = 0;
-uint16_t prevDrop = 0;
 unsigned long lastTick = 0;
-
-// ===========================================================================
-//  HELPERS
-// ===========================================================================
-void buzz(uint8_t pin, uint8_t strength, uint16_t ms) {
-  analogWrite(pin, strength);
-  delay(ms);
-  analogWrite(pin, 0);
-}
-
-bool initDualVL53() {
-  // Dual VL53L0X trick: hold both in reset, bring up one at a time,
-  // assign a unique I2C address, then bring up the next.
-  pinMode(XSHUT_FWD,  OUTPUT);
-  pinMode(XSHUT_DROP, OUTPUT);
-  digitalWrite(XSHUT_FWD,  LOW);
-  digitalWrite(XSHUT_DROP, LOW);
-  delay(10);
-
-  // Bring up FWD
-  digitalWrite(XSHUT_FWD, HIGH);
-  delay(10);
-  if (!loxFwd.begin(ADDR_VL53_FWD)) return false;
-
-  // Bring up DROP
-  digitalWrite(XSHUT_DROP, HIGH);
-  delay(10);
-  if (!loxDrop.begin(ADDR_VL53_DROP)) return false;
-
-  return true;
-}
-
-// VIBECODER ZONE ------------------------------------------------------------
-// Put your custom haptic pattern / alert logic here.
-// Called every loop with the freshly-computed sensor values.
-// ---------------------------------------------------------------------------
-void reflexLogic(uint16_t distFwd, uint16_t distDrop, bool fall, int light) {
-  // Obstacle getting closer?
-  if (distFwd > 0 && distFwd < OBSTACLE_FWD_MM &&
-      (prevFwd == 0 || (int)prevFwd - (int)distFwd > MOTION_DELTA_MM)) {
-    buzz(MOTOR_L, 200, 40);
-  }
-
-  // Sudden drop-off (stairs / kerb)?
-  if (distDrop > 0 && (int)distDrop - (int)prevDrop > DROP_DIFF_MM) {
-    buzz(MOTOR_R, 255, 80);
-  }
-
-  // Fall detected -> both motors scream
-  if (fall) {
-    buzz(MOTOR_L, 255, 200);
-    buzz(MOTOR_R, 255, 200);
-  }
-
-  // TODO (vibecoder): add light-based behavior using `light`
-}
-
-void drawOLED(uint16_t f, uint16_t d, bool fall, int light) {
-  oled.clearDisplay();
-  oled.setCursor(0, 0);
-  oled.setTextSize(1);
-  oled.setTextColor(SSD1306_WHITE);
-  oled.printf("FWD : %4u mm\n", f);
-  oled.printf("DROP: %4u mm\n", d);
-  oled.printf("FALL: %s\n", fall ? "YES" : "no");
-  oled.printf("LUX : %4d\n", light);
-  oled.display();
-}
 
 // ===========================================================================
 //  SETUP
 // ===========================================================================
 void setup() {
   Serial.begin(115200);
-  delay(200);
-  Wire.begin();
+  delay(1000);
 
-  pinMode(MOTOR_L, OUTPUT);
-  pinMode(MOTOR_R, OUTPUT);
+  Wire.begin(21, 22);
 
-  if (!initDualVL53()) {
+  pinMode(LED_PIN,    OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Starting...");
+
+  if (!lox.begin()) {
+    lcd.clear();
+    lcd.print("TOF FAIL");
     Serial.println("ERR: VL53L0X init failed");
-  }
-  if (!mpu.begin()) {
-    Serial.println("ERR: MPU init failed");
-  }
-  if (!oled.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println("ERR: OLED init failed");
+    while (1);
   }
 
-  oled.clearDisplay();
-  oled.setCursor(0, 0);
-  oled.setTextSize(1);
-  oled.setTextColor(SSD1306_WHITE);
-  oled.println("Smart Cane Ready");
-  oled.display();
+  lcd.clear();
+  lcd.print("READY");
+  delay(1000);
 }
 
 // ===========================================================================
-//  MAIN LOOP - emits packet every LOOP_MS
+//  MAIN LOOP
 // ===========================================================================
 void loop() {
   if (millis() - lastTick < LOOP_MS) return;
   lastTick = millis();
 
-  // ---- Read ToF sensors ----
-  VL53L0X_RangingMeasurementData_t mFwd, mDrop;
-  loxFwd.rangingTest(&mFwd, false);
-  loxDrop.rangingTest(&mDrop, false);
-  uint16_t distFwd  = (mFwd.RangeStatus  != 4) ? mFwd.RangeMilliMeter  : 0;
-  uint16_t distDrop = (mDrop.RangeStatus != 4) ? mDrop.RangeMilliMeter : 0;
+  // ---- ToF ----
+  VL53L0X_RangingMeasurementData_t measure;
+  lox.rangingTest(&measure, false);
+  int distFwd = (measure.RangeStatus != 4) ? (int)measure.RangeMilliMeter : 0;
 
-  // ---- Read IMU & compute fall ----
-  sensors_event_t a, g, t;
-  mpu.getEvent(&a, &g, &t);
-  float accMag = sqrt(a.acceleration.x * a.acceleration.x +
-                      a.acceleration.y * a.acceleration.y +
-                      a.acceleration.z * a.acceleration.z) / 9.81f;
-  bool fallFlag = (accMag > FALL_ACCEL_G);
+  // ---- LDR ----
+  int ldrValue = analogRead(LDR_PIN);
+  bool isDark  = (ldrValue < LDR_DARK_THRESHOLD);
 
-  // ---- Read LDR ----
-  int lightVal = analogRead(LDR_PIN);   // 0..4095 on ESP32
+  // ---- LED ----
+  digitalWrite(LED_PIN, isDark ? HIGH : LOW);
 
-  // ---- React ----
-  reflexLogic(distFwd, distDrop, fallFlag, lightVal);
-  drawOLED(distFwd, distDrop, fallFlag, lightVal);
+  // ---- Buzzer ----
+  if (distFwd > 0 && distFwd < 100) {
+    // Very close -- fast beep
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(100);
+    digitalWrite(BUZZER_PIN, LOW);
+  } else if (distFwd > 0 && distFwd < 300) {
+    // Approaching -- slow beep
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(300);
+    digitalWrite(BUZZER_PIN, LOW);
+  } else {
+    digitalWrite(BUZZER_PIN, LOW);
+  }
 
-  // ---- Emit packet: "045,180,0,550" ----
+  // ---- LCD ----
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  if (measure.RangeStatus != 4) {
+    lcd.print("Dist:");
+    lcd.print(distFwd);
+    lcd.print("mm");
+  } else {
+    lcd.print("Out of range");
+  }
+  lcd.setCursor(0, 1);
+  lcd.print("L:");
+  lcd.print(ldrValue);
+  lcd.print(" ");
+  lcd.print(isDark ? "DARK" : "BRIGHT");
+
+  // ---- Serial packet (dashboard format) ----
+  // Format: dist_fwd,dist_drop,fall_flag,light_val
+  // dist_drop=000 (no drop sensor), fall_flag=0 (no IMU)
   char buf[32];
-  snprintf(buf, sizeof(buf), "%03u,%03u,%d,%04d",
-           distFwd, distDrop, fallFlag ? 1 : 0, lightVal);
+  snprintf(buf, sizeof(buf), "%03d,000,0,%04d", distFwd, ldrValue);
   Serial.println(buf);
-
-  // ---- Save deltas ----
-  prevFwd  = distFwd;
-  prevDrop = distDrop;
 }

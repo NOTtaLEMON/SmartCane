@@ -110,8 +110,8 @@ def run(src: str, model_path: str, conf: float, show: bool) -> None:
     if is_ip_webcam:
         print(f"[vision] IP Webcam stream active - ready for object detection", flush=True)
 
-    # Open log file for writing
-    log_file = open("vision.log", "a")
+    # Open log file for writing (overwrite on each run to keep it small)
+    log_file = open("vision.log", "w")
 
     try:
         last_print = 0.0
