@@ -297,10 +297,13 @@ class Packet:
 class SerialSource:
     def __init__(self, port: str, baud: int = 115200):
         self.ser = serial.Serial(port, baud, timeout=0.2)
+        self.last_raw = ""
 
     def read(self) -> Packet | None:
         try:
             line = self.ser.readline().decode(errors="ignore")
+            if line:
+                self.last_raw = line.strip()
             return Packet.parse(line) if line else None
         except Exception:
             return None
@@ -391,15 +394,26 @@ with st.sidebar:
     st.markdown('<hr class="divider">', unsafe_allow_html=True)
 
     st.markdown('<div class="section-label">Data source</div>', unsafe_allow_html=True)
-    mock_mode = st.toggle("Mock Mode (no hardware)", value=not HAS_SERIAL)
+
+    # Auto-detect: if serial ports are present and the user hasn't explicitly
+    # chosen mock mode yet, default to real-hardware mode.
+    detected_ports = [p.device for p in list_ports.comports()] if HAS_SERIAL else []
+    auto_mock = not bool(detected_ports)
+    if "mock_mode_set" not in st.session_state:
+        st.session_state["mock_mode_set"] = True
+        st.session_state["mock_mode_val"] = auto_mock
+
+    mock_mode = st.toggle("Mock Mode (no hardware)",
+                          value=st.session_state["mock_mode_val"],
+                          key="mock_mode_toggle")
+    st.session_state["mock_mode_val"] = mock_mode
 
     port = None
     if not mock_mode:
         if not HAS_SERIAL:
             st.error("pyserial not installed. `pip install pyserial`")
         else:
-            ports = [p.device for p in list_ports.comports()]
-            port = st.selectbox("Serial Port", ports or ["(none detected)"])
+            port = st.selectbox("Serial Port", detected_ports or ["(none detected)"])
         baud = st.number_input("Baud", value=115200, step=9600)
 
     st.markdown('<hr class="divider">', unsafe_allow_html=True)
@@ -483,10 +497,49 @@ with st.sidebar:
     window = st.slider("History window (samples)", 50, 500, 150)
     start = st.toggle("▶ Start stream", value=True)
 
+    # ---- Raw serial debug monitor ----
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+    with st.expander("🔬 Raw Serial Monitor", expanded=False):
+        if "serial_raw" not in st.session_state:
+            st.session_state.serial_raw = []
+        raw_lines = st.session_state.get("serial_raw", [])
+        if raw_lines:
+            st.code("\n".join(raw_lines[-15:]), language=None)
+        else:
+            st.caption("No data received yet. Make sure Mock Mode is OFF and the correct COM port is selected.")
+        if st.button("Clear", key="clear_serial"):
+            st.session_state.serial_raw = []
+
+
+# --- Live / Mock banner ---
+if mock_mode:
+    st.markdown("""
+<div style="background:rgba(99,102,241,0.12);border:1px solid #6366f166;
+  border-radius:10px;padding:8px 16px;margin-bottom:10px;
+  font-size:0.85rem;color:#a5b4fc;font-family:'Segoe UI',sans-serif;">
+  🎭 <strong>MOCK MODE</strong> — simulated data only.
+  Turn off <em>Mock Mode</em> in the sidebar and select your COM port for real sensor data.
+</div>""", unsafe_allow_html=True)
+else:
+    status_col1, status_col2 = st.columns([1, 4])
+    with status_col1:
+        st.markdown("""
+<div style="background:rgba(34,197,94,0.12);border:1px solid #21c55d66;
+  border-radius:10px;padding:8px 16px;
+  font-size:0.85rem;color:#86efac;font-family:'Segoe UI',sans-serif;text-align:center;">
+  ⚡ <strong>LIVE</strong>
+</div>""", unsafe_allow_html=True)
+    with status_col2:
+        st.markdown(
+            f'<div style="padding:9px 0;font-size:0.82rem;color:#64748b;">'
+            f'Reading from <code>{port}</code> @ {baud if "baud" in dir() else 115200} baud'
+            f'</div>', unsafe_allow_html=True)
 
 # --- Session state for history ---
 if "hist" not in st.session_state:
     st.session_state.hist = deque(maxlen=500)
+if "serial_raw" not in st.session_state:
+    st.session_state.serial_raw = []
 
 # --- Source ---
 src = None
@@ -548,6 +601,10 @@ if src is not None:
 
     for _ in range(150):
         pkt = src.read()
+        # Capture raw lines for the serial monitor (SerialSource only)
+        if hasattr(src, "last_raw") and src.last_raw:
+            st.session_state.serial_raw.append(src.last_raw)
+            st.session_state.serial_raw = st.session_state.serial_raw[-50:]
         if pkt is None:
             time.sleep(0.05)
             continue
