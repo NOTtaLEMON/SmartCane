@@ -121,22 +121,20 @@ def check_ip_webcam_url(url: str, timeout: int = 5) -> tuple[bool, str, str]:
 
 def mm_to_readable(mm: int) -> tuple[str, str]:
     """Return (human-readable string, zone colour)."""
-    cm = mm / 10
-    if cm < 30:
-        return f"{cm:.0f} cm", "#ff4b4b"      # critical – red
-    elif cm < 80:
-        return f"{cm:.0f} cm", "#ffa733"      # warning – orange
-    elif cm < 150:
-        return f"{cm:.1f} cm", "#f6c000"      # caution – yellow
+    if mm < 300:
+        return f"{mm} mm", "#ff4b4b"      # critical – red
+    elif mm < 800:
+        return f"{mm} mm", "#ffa733"      # warning – orange
+    elif mm < 1500:
+        return f"{mm} mm", "#f6c000"      # caution – yellow
     else:
         m = mm / 1000
         return f"{m:.2f} m", "#21c55d"        # safe – green
 
 def zone_label(mm: int) -> str:
-    cm = mm / 10
-    if cm < 30:   return "CRITICAL"
-    if cm < 80:   return "WARNING"
-    if cm < 150:  return "CAUTION"
+    if mm < 300:   return "CRITICAL"
+    if mm < 800:   return "WARNING"
+    if mm < 1500:  return "CAUTION"
     return "CLEAR"
 
 def lux_label(val: int) -> tuple[str, str]:
@@ -170,132 +168,72 @@ def confidence_bar_html(label: str, conf: float, dist_mm: float) -> str:
     pct = int(conf * 100)
     emoji = obj_emoji(label)
     dist_str, dist_color = mm_to_readable(int(dist_mm))
-    if pct >= 85:   bar_color = colors['accent_green']
-    elif pct >= 65: bar_color = colors['accent_yellow']
-    else:           bar_color = "#f97316"
+    if pct >= 85:   bar_color = "#21c55d"
+    elif pct >= 65: bar_color = "#f6c000"
+    else:           bar_color = "#ffa733"
     return f"""
 <div style="
-    background:linear-gradient(135deg,rgba(255,255,255,0.05) 0%,rgba(255,255,255,0.02) 100%);
-    border:1.5px solid {colors['border_light']};
-    border-radius:12px;
-    padding:14px 16px;
-    margin-bottom:10px;
-    font-family:'Inter','Segoe UI',sans-serif;
-    transition:all 0.3s ease;
-    position:relative;
-    overflow:hidden;
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.10);
+    border-radius:10px;
+    padding:10px 14px;
+    margin-bottom:8px;
+    font-family:'Segoe UI',sans-serif;
 ">
-  <div style="
-    position:absolute;top:0;right:0;width:80px;height:80px;
-    background:radial-gradient(circle, {bar_color}10 0%, transparent 70%);
-    border-radius:50%;transform:translate(40%, -40%);
-  "></div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;position:relative;z-index:1;">
-    <span style="font-size:1.05rem;font-weight:600;color:{colors['text_primary']};">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+    <span style="font-size:1.1rem;font-weight:600;color:#e2e8f0;">
       {emoji}&nbsp;&nbsp;{label.title()}
     </span>
-    <span style="font-size:0.9rem;font-weight:700;color:{bar_color};">{pct}%</span>
+    <span style="font-size:0.9rem;font-weight:700;color:{bar_color};">{pct}% conf.</span>
   </div>
-  <div style="background:{colors['border_light']};border-radius:8px;height:10px;overflow:hidden;margin-bottom:10px;">
-    <div style="width:{pct}%;height:100%;background:linear-gradient(90deg,{bar_color} 0%, {bar_color}dd 100%);
-                border-radius:8px;transition:width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-                box-shadow:0 0 12px {bar_color}66;"></div>
+  <div style="background:rgba(255,255,255,0.10);border-radius:6px;height:8px;overflow:hidden;">
+    <div style="width:{pct}%;height:100%;background:{bar_color};
+                border-radius:6px;transition:width 0.4s ease;"></div>
   </div>
-  <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.75rem;position:relative;z-index:1;">
-    <span style="color:{colors['text_muted']};font-weight:500;">📏 {dist_str}</span>
-    <span style="color:{dist_color};font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">{zone_label(int(dist_mm))}</span>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+    <span style="font-size:0.8rem;color:#94a3b8;">Distance: {dist_str}</span>
+    <span style="font-size:0.7rem;color:{dist_color};font-weight:600;">{zone_label(int(dist_mm))}</span>
   </div>
 </div>"""
 
 def sensor_card_html(title: str, value: str, subtitle: str, color: str, icon: str) -> str:
     return f"""
 <div style="
-    background:linear-gradient(135deg,{color}08 0%,{color}04 100%);
-    border:1.5px solid {color}40;
-    border-radius:14px;
-    padding:20px 22px;
-    font-family:'Inter','Segoe UI',sans-serif;
-    margin-bottom:8px;
-    position:relative;
-    overflow:hidden;
-    box-shadow:0 4px 16px rgba(0,0,0,0.08);
-    transition:all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    background:linear-gradient(135deg,rgba(255,255,255,0.06) 0%,rgba(255,255,255,0.02) 100%);
+    border:1px solid {color}55;
+    border-left:4px solid {color};
+    border-radius:12px;
+    padding:16px 18px;
+    font-family:'Segoe UI',sans-serif;
+    margin-bottom:4px;
 ">
-  <div style="
-    position:absolute;top:0;right:0;width:100px;height:100px;
-    background:radial-gradient(circle, {color}15 0%, transparent 70%);
-    border-radius:50%;transform:translate(30%, -30%);
-  "></div>
-  <div style="
-    font-size:0.7rem;
-    text-transform:uppercase;
-    letter-spacing:1.4px;
-    font-weight:600;
-    color:{color};
-    opacity:0.9;
-    margin-bottom:8px;
-    position:relative;
-    z-index:1;
-  ">{icon}&nbsp;&nbsp;{title}</div>
-  <div style="
-    font-size:2.2rem;
-    font-weight:700;
-    color:{colors['text_primary']};
-    line-height:1.1;
-    margin:8px 0;
-    position:relative;
-    z-index:1;
-  ">{value}</div>
-  <div style="
-    font-size:0.8rem;
-    color:{colors['text_muted']};
-    margin-top:8px;
-    position:relative;
-    z-index:1;
-  ">{subtitle}</div>
+  <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.2px;
+              color:{color};opacity:0.85;margin-bottom:4px;">{icon}&nbsp;{title}</div>
+  <div style="font-size:2rem;font-weight:700;color:#f1f5f9;line-height:1.1;">{value}</div>
+  <div style="font-size:0.78rem;color:#94a3b8;margin-top:4px;">{subtitle}</div>
 </div>"""
 
 def fall_banner_html(active: bool) -> str:
     if active:
-        return f"""<div style="
-            background:linear-gradient(90deg,#ef4444,#dc2626);
-            border-radius:14px;
-            padding:16px 24px;
-            font-family:'Inter','Segoe UI',sans-serif;
-            animation:glow-anim 1.5s ease-in-out infinite;
+        return """<div style="
+            background:linear-gradient(90deg,#dc2626,#b91c1c);
+            border-radius:12px;padding:14px 20px;
+            font-family:'Segoe UI',sans-serif;
+            animation:pulse 1s infinite;
             text-align:center;
-            font-size:1.25rem;
-            font-weight:700;
-            color:#fff;
-            letter-spacing:0.8px;
-            margin-bottom:14px;
-            box-shadow:0 0 30px rgba(239, 68, 68, 0.4);
-            position:relative;
-            overflow:hidden;
-        ">
-            <div style="
-                position:absolute;top:-50%;left:-50%;width:200%;height:200%;
-                background:radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
-                animation:pulse-subtle 2s ease-in-out infinite;
-            "></div>
-            <div style="position:relative;z-index:1;">
-                ⚠️&nbsp;&nbsp;FALL DETECTED — ALERT TRIGGERED&nbsp;&nbsp;⚠️
-            </div>
+            font-size:1.3rem;font-weight:700;color:#fff;
+            letter-spacing:1px;margin-bottom:10px;
+            box-shadow:0 0 20px #dc262688;">
+            ⚠️&nbsp;&nbsp;FALL DETECTED — ALERT TRIGGERED&nbsp;&nbsp;⚠️
         </div>"""
-    return f"""<div style="
-        background:linear-gradient(135deg,{colors['accent_green']}12 0%,{colors['accent_green']}08 100%);
-        border:1.5px solid {colors['accent_green']}50;
-        border-radius:14px;
-        padding:12px 24px;
-        font-family:'Inter','Segoe UI',sans-serif;
-        text-align:center;
-        font-size:0.9rem;
-        color:{colors['accent_green']};
-        margin-bottom:14px;
-        font-weight:600;
-        letter-spacing:0.5px;
-    ">
-        ✅&nbsp;&nbsp;No fall detected&nbsp;—&nbsp;IMU stable
+    return """<div style="
+        background:rgba(34,197,94,0.08);
+        border:1px solid rgba(34,197,94,0.25);
+        border-radius:12px;padding:10px 20px;
+        font-family:'Segoe UI',sans-serif;
+        text-align:center;font-size:0.9rem;color:#86efac;
+        margin-bottom:10px;">
+        ✅&nbsp;&nbsp;No fall detected &nbsp;—&nbsp; IMU stable
     </div>"""
 
 
@@ -356,24 +294,16 @@ class Packet:
 # ---------------------------------------------------------------------------
 class SerialSource:
     def __init__(self, port: str, baud: int = 115200):
-        # Timeout of 1.5 s — firmware buzzer delays can hold up a packet up to ~400 ms
-        self.ser = serial.Serial(port, baud, timeout=1.5)
+        self.ser = serial.Serial(port, baud, timeout=0.2)
         self.last_raw = ""
 
     def read(self) -> Packet | None:
         try:
             line = self.ser.readline().decode(errors="ignore")
-            stripped = line.strip()
-            if stripped:
-                self.last_raw = stripped
-                pkt = Packet.parse(stripped)
-                if pkt is None:
-                    # Keep the unparseable line visible in the debug monitor
-                    self.last_raw = f"[PARSE FAIL] {stripped}"
-                return pkt
-            return None
-        except Exception as exc:
-            self.last_raw = f"[READ ERROR] {exc}"
+            if line:
+                self.last_raw = line.strip()
+            return Packet.parse(line) if line else None
+        except Exception:
             return None
 
     def close(self):
@@ -426,173 +356,36 @@ def read_latest_vision(file: Path) -> str:
 # ---------------------------------------------------------------------------
 st.set_page_config(page_title="Smart Cane Dashboard", layout="wide", page_icon="🦯")
 
-# ---- Global CSS with Theme Support ----
-if "theme_mode" not in st.session_state:
-    st.session_state.theme_mode = "dark"  # 'dark' or 'light'
-
-theme = st.session_state.theme_mode
-
-# Color palettes
-THEMES = {
-    "dark": {
-        "bg_primary": "#0f172a",
-        "bg_secondary": "#1e293b",
-        "bg_tertiary": "#334155",
-        "text_primary": "#f1f5f9",
-        "text_secondary": "#cbd5e1",
-        "text_muted": "#64748b",
-        "border_light": "rgba(255,255,255,0.08)",
-        "border_medium": "rgba(255,255,255,0.15)",
-        "accent_blue": "#0ea5e9",
-        "accent_green": "#10b981",
-        "accent_red": "#ef4444",
-        "accent_yellow": "#f59e0b",
-        "accent_purple": "#8b5cf6",
-    },
-    "light": {
-        "bg_primary": "#ffffff",
-        "bg_secondary": "#f8fafc",
-        "bg_tertiary": "#e2e8f0",
-        "text_primary": "#1e293b",
-        "text_secondary": "#334155",
-        "text_muted": "#94a3b8",
-        "border_light": "rgba(0,0,0,0.06)",
-        "border_medium": "rgba(0,0,0,0.12)",
-        "accent_blue": "#0284c7",
-        "accent_green": "#059669",
-        "accent_red": "#dc2626",
-        "accent_yellow": "#d97706",
-        "accent_purple": "#7c3aed",
-    }
-}
-
-colors = THEMES[theme]
-
-st.markdown(f"""
+# ---- Global CSS ----
+st.markdown("""
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
-  
-  :root {{
-    --bg-primary: {colors['bg_primary']};
-    --bg-secondary: {colors['bg_secondary']};
-    --text-primary: {colors['text_primary']};
-    --text-secondary: {colors['text_secondary']};
-    --text-muted: {colors['text_muted']};
-    --border-light: {colors['border_light']};
-    --accent-blue: {colors['accent_blue']};
-    --accent-green: {colors['accent_green']};
-  }}
-  
-  html, body, [class*="css"] {{ 
-    font-family: 'Inter', 'Segoe UI', sans-serif;
-    background-color: {colors['bg_primary']} !important;
-    color: {colors['text_primary']} !important;
-  }}
-  
-  .block-container {{ 
-    padding-top: 2rem; 
-    max-width: 1400px;
-  }}
-  
-  h1 {{ 
-    font-size: 2rem !important; 
-    font-weight: 700 !important;
-    letter-spacing: -0.02em;
-    line-height: 1.2 !important;
-  }}
-  
-  h2, h3 {{
-    font-weight: 600 !important;
-    letter-spacing: -0.01em;
-  }}
-  
-  .section-label {{
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 1.6px;
-    font-weight: 600;
-    color: {colors['text_muted']};
-    margin-bottom: 12px;
-    margin-top: 24px;
-    display: block;
-  }}
-  
-  .divider {{ 
-    border: none;
-    border-top: 1px solid {colors['border_light']};
-    margin: 20px 0;
-  }}
-  
-  /* Animations */
-  @keyframes pulse-subtle {{
-    0%, 100% {{ opacity: 1; }}
-    50% {{ opacity: 0.7; }}
-  }}
-  
-  @keyframes slide-in {{
-    from {{ opacity: 0; transform: translateY(10px); }}
-    to {{ opacity: 1; transform: translateY(0); }}
-  }}
-  
-  @keyframes glow {{
-    0%, 100% {{ box-shadow: 0 0 15px rgba(34, 197, 94, 0.3); }}
-    50% {{ box-shadow: 0 0 25px rgba(34, 197, 94, 0.5); }}
-  }}
-  
-  .pulse-anim {{ animation: pulse-subtle 2s ease-in-out infinite; }}
-  .slide-in {{ animation: slide-in 0.4s ease-out; }}
-  .glow-anim {{ animation: glow 2s ease-in-out infinite; }}
-  
-  /* Smooth transitions */
-  * {{
-    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
-  }}
-  
-  button, [role="button"] {{
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-  }}
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  html, body, [class*="css"] { font-family: 'Inter', 'Segoe UI', sans-serif; }
+  .block-container { padding-top: 1.5rem; }
+  h1 { font-size: 1.65rem !important; font-weight: 700 !important; }
+  .section-label {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.4px;
+    color: #64748b; margin-bottom: 6px; margin-top: 18px;
+  }
+  .divider { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 14px 0; }
 </style>
 """, unsafe_allow_html=True)
 
-# ---- Header with Theme Toggle ----
-header_col1, header_col2 = st.columns([1, 0.15])
-
-with header_col1:
-    st.markdown(f"""
-<div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;animation:slide-in 0.6s ease-out;">
-  <div style="
-    font-size:3rem;
-    filter: drop-shadow(0 4px 12px rgba(59, 130, 246, 0.2));
-  ">🦯</div>
+# ---- Header ----
+st.markdown("""
+<div style="display:flex;align-items:center;gap:14px;margin-bottom:6px;">
+  <span style="font-size:2.4rem;">🦯</span>
   <div>
-    <div style="
-      font-size:2rem;
-      font-weight:700;
-      color:{colors['text_primary']};
-      line-height:1.2;
-      letter-spacing:-0.02em;
-    ">
+    <div style="font-size:1.5rem;font-weight:700;color:#f1f5f9;line-height:1.1;">
       Smart Cane Clip-On
     </div>
-    <div style="
-      font-size:0.85rem;
-      color:{colors['text_muted']};
-      letter-spacing:0.3px;
-      margin-top:4px;
-    ">
+    <div style="font-size:0.82rem;color:#64748b;letter-spacing:0.5px;">
       Real-time obstacle detection &amp; fall monitoring dashboard
     </div>
   </div>
 </div>
 <hr class="divider">
-    """, unsafe_allow_html=True)
-
-with header_col2:
-    new_theme = "light" if theme == "dark" else "dark"
-    theme_icon = "☀️" if theme == "dark" else "🌙"
-    if st.button(theme_icon, key="theme_toggle", help="Toggle theme"):
-        st.session_state.theme_mode = new_theme
-        st.rerun()
+""", unsafe_allow_html=True)
 
 with st.sidebar:
     st.markdown('<div style="font-size:1.1rem;font-weight:700;color:#f1f5f9;">⚙️ Configuration</div>', unsafe_allow_html=True)
@@ -718,44 +511,26 @@ with st.sidebar:
 
 # --- Live / Mock banner ---
 if mock_mode:
-    st.markdown(f"""
-<div style="
-  background:linear-gradient(135deg,{colors['accent_purple']}12 0%,{colors['accent_purple']}08 100%);
-  border:1.5px solid {colors['accent_purple']}50;
-  border-radius:14px;
-  padding:12px 18px;
-  margin-bottom:14px;
-  font-size:0.85rem;
-  color:{colors['accent_purple']};
-  font-family:'Inter','Segoe UI',sans-serif;
-  font-weight:600;
-  letter-spacing:0.3px;
->
+    st.markdown("""
+<div style="background:rgba(99,102,241,0.12);border:1px solid #6366f166;
+  border-radius:10px;padding:8px 16px;margin-bottom:10px;
+  font-size:0.85rem;color:#a5b4fc;font-family:'Segoe UI',sans-serif;">
   🎭 <strong>MOCK MODE</strong> — simulated data only.
   Turn off <em>Mock Mode</em> in the sidebar and select your COM port for real sensor data.
 </div>""", unsafe_allow_html=True)
 else:
     status_col1, status_col2 = st.columns([1, 4])
     with status_col1:
-        st.markdown(f"""
-<div style="
-  background:linear-gradient(135deg,{colors['accent_green']}20 0%,{colors['accent_green']}12 100%);
-  border:1.5px solid {colors['accent_green']}60;
-  border-radius:14px;
-  padding:10px 16px;
-  font-size:0.85rem;
-  color:{colors['accent_green']};
-  font-family:'Inter','Segoe UI',sans-serif;
-  text-align:center;
-  font-weight:700;
-  letter-spacing:0.5px;
->
+        st.markdown("""
+<div style="background:rgba(34,197,94,0.12);border:1px solid #21c55d66;
+  border-radius:10px;padding:8px 16px;
+  font-size:0.85rem;color:#86efac;font-family:'Segoe UI',sans-serif;text-align:center;">
   ⚡ <strong>LIVE</strong>
 </div>""", unsafe_allow_html=True)
     with status_col2:
         st.markdown(
-            f'<div style="padding:11px 0;font-size:0.82rem;color:{colors["text_muted"]};font-weight:500;">' 
-            f'Reading from <code style="background:{colors["bg_secondary"]};padding:2px 6px;border-radius:4px;">{port}</code> @ {baud if "baud" in dir() else 115200} baud'
+            f'<div style="padding:9px 0;font-size:0.82rem;color:#64748b;">'
+            f'Reading from <code>{port}</code> @ {baud if "baud" in dir() else 115200} baud'
             f'</div>', unsafe_allow_html=True)
 
 # --- Session state for history ---
@@ -764,41 +539,16 @@ if "hist" not in st.session_state:
 if "serial_raw" not in st.session_state:
     st.session_state.serial_raw = []
 
-# --- Source (cached in session state to survive reruns without closing) ---
+# --- Source ---
 src = None
 if start:
     if mock_mode:
-        # MockSource is lightweight – recreate each run
         src = MockSource()
     elif HAS_SERIAL and port and port != "(none detected)":
-        # Reuse an existing open serial connection if port hasn't changed
-        cached = st.session_state.get("serial_src")
-        cached_ok = (
-            cached is not None
-            and getattr(cached, "_port", None) == port
-            and getattr(getattr(cached, "ser", None), "is_open", False)
-        )
-        if cached_ok:
-            src = cached
-        else:
-            # Close stale/wrong-port connection before opening a new one
-            if cached is not None:
-                try: cached.close()
-                except Exception: pass
-            st.session_state.pop("serial_src", None)
-            try:
-                new_src = SerialSource(port, int(baud))
-                new_src._port = port
-                st.session_state["serial_src"] = new_src
-                src = new_src
-            except PermissionError:
-                st.error(
-                    f"**Access denied on {port}.** Another program is using this port.\n\n"
-                    f"**Fix:** Close **Arduino IDE Serial Monitor** (or any other serial terminal) "
-                    f"on the teammate's laptop, then refresh this page."
-                )
-            except Exception as e:
-                st.error(f"Could not open {port}: {e}")
+        try:
+            src = SerialSource(port, int(baud))
+        except Exception as e:
+            st.error(f"Could not open {port}: {e}")
 
 # ---------------------------------------------------------------------------
 #  Layout placeholders
@@ -806,8 +556,8 @@ if start:
 fall_banner_ph = st.empty()
 
 # Row 1: sensor cards
-st.markdown(f'<div class="section-label" style="margin-top:0;">📡 Sensor Readings</div>', unsafe_allow_html=True)
-sensor_cols = st.columns(4, gap="medium")
+st.markdown('<div class="section-label">📡 Sensor Readings</div>', unsafe_allow_html=True)
+sensor_cols = st.columns(4)
 card_fwd   = sensor_cols[0].empty()
 card_drop  = sensor_cols[1].empty()
 card_fall  = sensor_cols[2].empty()
@@ -816,7 +566,7 @@ card_lux   = sensor_cols[3].empty()
 st.markdown('<hr class="divider">', unsafe_allow_html=True)
 
 # Row 2: detections (left) + proximity gauge (right)
-det_col, prox_col = st.columns([3, 2], gap="medium")
+det_col, prox_col = st.columns([3, 2])
 
 with det_col:
     st.markdown('<div class="section-label">🎥 Object Detection</div>', unsafe_allow_html=True)
@@ -830,15 +580,15 @@ st.markdown('<hr class="divider">', unsafe_allow_html=True)
 
 # Row 3: charts
 st.markdown('<div class="section-label">📈 Sensor History</div>', unsafe_allow_html=True)
-ch_col1, ch_col2, ch_col3 = st.columns(3, gap="medium")
+ch_col1, ch_col2, ch_col3 = st.columns(3)
 with ch_col1:
-    st.caption("📏 Forward Distance (mm)")
+    st.caption("Forward Distance (mm)")
     chart_fwd  = st.empty()
 with ch_col2:
-    st.caption("⬇️ Drop Distance (mm)")
+    st.caption("Drop Distance (mm)")
     chart_drop = st.empty()
 with ch_col3:
-    st.caption("💡 Ambient Light (lux)")
+    st.caption("Ambient Light")
     chart_lux  = st.empty()
 
 # ---------------------------------------------------------------------------
@@ -847,7 +597,7 @@ with ch_col3:
 if src is not None:
     st.session_state.hist = deque(list(st.session_state.hist)[-window:], maxlen=500)
 
-    for _ in range(5000):
+    for _ in range(150):
         pkt = src.read()
         # Capture raw lines for the serial monitor (SerialSource only)
         if hasattr(src, "last_raw") and src.last_raw:
@@ -884,12 +634,12 @@ if src is not None:
             f"Zone: {zone_label(pkt.dist_drop)}",
             drop_color, "⬇️"), unsafe_allow_html=True)
 
-        fall_color = colors['accent_red'] if pkt.fall_flag else colors['accent_green']
+        fall_color = "#ff4b4b" if pkt.fall_flag else "#21c55d"
         card_fall.markdown(sensor_card_html(
             "Fall Status",
-            "⚠️ FALL" if pkt.fall_flag else "✓ Stable",
+            "⚠️ FALL" if pkt.fall_flag else "Stable",
             "IMU / accelerometer",
-            fall_color, "🚨"), unsafe_allow_html=True)
+            fall_color, "🏃"), unsafe_allow_html=True)
 
         card_lux.markdown(sensor_card_html(
             "Ambient Light", lux_str,
@@ -904,14 +654,18 @@ if src is not None:
             bars_html = "".join(confidence_bar_html(lbl, conf, dist) for lbl, conf, dist in detections[:6])
             detection_ph.markdown(f"""
 <div style="padding:4px 0;">{bars_html}</div>
-<div style="font-size:0.7rem;color:{colors['text_muted']};margin-top:10px;font-weight:500;">
-  ⏱️ Last update: {time.strftime('%H:%M:%S')} &nbsp;·&nbsp; {len(detections)} object(s) detected
+<div style="font-size:0.72rem;color:#475569;margin-top:6px;">
+  Last update: {time.strftime('%H:%M:%S')} &nbsp;·&nbsp; {len(detections)} object(s) in frame
 </div>
 """, unsafe_allow_html=True)
         else:
-            detection_ph.markdown(f"""
+            detection_ph.markdown("""
 <div style="
-  background:linear-gradient(135deg,rgba(255,255,255,0.02) 0%,rgba(255,255,255,0.01) 100%);\n  border:2px dashed {colors['border_light']};\n  border-radius:14px;padding:36px 24px;text-align:center;color:{colors['text_muted']};font-size:0.9rem;font-family:'Inter','Segoe UI',sans-serif;\">\n  📭 No objects currently detected<br>\n  <span style=\"font-size:0.8rem;color:{colors['text_muted']};opacity:0.7;\">Waiting for vision module output…</span>\n</div>""", unsafe_allow_html=True)
+  background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.10);
+  border-radius:12px;padding:28px;text-align:center;color:#475569;font-size:0.9rem;">
+  No objects currently detected<br>
+  <span style="font-size:0.75rem;">Waiting for vision module output…</span>
+</div>""", unsafe_allow_html=True)
 
         # ---- Proximity assessment panel ----
         # Use closest detected object distance if available, otherwise fall back to ultrasonic sensor
@@ -934,59 +688,46 @@ if src is not None:
             zone_colors = {"CRITICAL": "#ff4b4b", "WARNING": "#ffa733", "CAUTION": "#f6c000", "CLEAR": "#21c55d"}
             zc = zone_colors.get(zone, "#21c55d")
 
-        zone_colors = {"CRITICAL": colors['accent_red'], "WARNING": "#f97316", "CAUTION": colors['accent_yellow'], "CLEAR": colors['accent_green']}
-        zc = zone_colors.get(zone, colors['accent_green'])
+        zone_colors = {"CRITICAL": "#ff4b4b", "WARNING": "#ffa733", "CAUTION": "#f6c000", "CLEAR": "#21c55d"}
+        zc = zone_colors.get(zone, "#21c55d")
 
         proximity_ph.markdown(f"""
 <div style="
-  background:linear-gradient(135deg,{zc}10 0%,{zc}05 100%);
-  border:1.5px solid {zc}50;
-  border-radius:16px;
-  padding:24px 20px;
-  font-family:'Inter','Segoe UI',sans-serif;
-  position:relative;
-  overflow:hidden;
-  box-shadow:0 8px 24px {zc}15;
-  animation:slide-in 0.5s ease-out;
+  background:linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01));
+  border:1px solid {zc}44;border-radius:14px;padding:20px 18px;
+  font-family:'Segoe UI',sans-serif;
 ">
-  <div style="
-    position:absolute;top:-60%;right:-60%;width:200%;height:200%;
-    background:radial-gradient(circle, {zc}20 0%, transparent 70%);
-    border-radius:50%;pointer-events:none;
-  "></div>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;">
     <div>
-      <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1.4px;color:{zc};font-weight:700;opacity:0.9;">
-        📍 Nearest Obstacle
+      <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:#64748b;">
+        Nearest Obstacle
       </div>
-      <div style="font-size:2.4rem;font-weight:700;color:{colors['text_primary']};margin:8px 0;line-height:1.1;">{fwd_c}</div>
-      <div style="font-size:0.85rem;color:{colors['text_muted']};font-weight:500;">straight ahead</div>
+      <div style="font-size:2.2rem;font-weight:700;color:#f1f5f9;margin:4px 0;">{fwd_c}</div>
+      <div style="font-size:0.85rem;color:#94a3b8;">straight ahead</div>
     </div>
     <div style="
-      background:{zc}20;border:2px solid {zc};
-      border-radius:12px;padding:8px 16px;
-      font-size:0.75rem;font-weight:700;color:{zc};letter-spacing:1px;text-transform:uppercase;">
+      background:{zc}22;border:2px solid {zc};
+      border-radius:10px;padding:6px 14px;
+      font-size:0.8rem;font-weight:700;color:{zc};letter-spacing:1px;">
       {zone}
     </div>
   </div>
-  <div style="margin-top:22px;position:relative;z-index:1;">
-    <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1.4px;color:{colors['text_muted']};font-weight:700;margin-bottom:8px;">Proximity Level</div>
-    <div style="background:{colors['border_light']};border-radius:10px;height:14px;overflow:hidden;box-shadow:inset 0 2px 4px rgba(0,0,0,0.2);">
+  <div style="margin-top:16px;">
+    <div style="font-size:0.7rem;color:#64748b;margin-bottom:5px;">PROXIMITY LEVEL</div>
+    <div style="background:rgba(255,255,255,0.08);border-radius:8px;height:12px;overflow:hidden;">
       <div style="width:{fwd_pct}%;height:100%;
-        background:linear-gradient(90deg,{colors['accent_green']} 0%, {zc} 100%);
-        border-radius:10px;
-        transition:width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-        box-shadow:0 0 16px {zc}50;"></div>
+        background:linear-gradient(90deg,#21c55d,{zc});
+        border-radius:8px;transition:width 0.4s ease;"></div>
     </div>
     <div style="display:flex;justify-content:space-between;
-      font-size:0.7rem;color:{colors['text_muted']};margin-top:6px;font-weight:500;">
-      <span>🟢 Far</span><span>🔴 Close</span>
+      font-size:0.65rem;color:#475569;margin-top:4px;">
+      <span>Far</span><span>Close</span>
     </div>
   </div>
   {"" if not detections else f'''
-  <div style="margin-top:18px;border-top:1px solid {colors['border_light']};padding-top:16px;position:relative;z-index:1;">
-    <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1.4px;color:{colors['text_muted']};font-weight:700;margin-bottom:6px;">Most Likely Object</div>
-    <div style="font-size:1.15rem;font-weight:700;color:{colors['text_primary']};">
+  <div style="margin-top:14px;border-top:1px solid rgba(255,255,255,0.07);padding-top:12px;">
+    <div style="font-size:0.7rem;color:#64748b;margin-bottom:4px;">MOST LIKELY OBJECT</div>
+    <div style="font-size:1.05rem;font-weight:600;color:#e2e8f0;">
       {top_emoji}&nbsp;&nbsp;{top_obj}
     </div>
   </div>'''}
@@ -999,17 +740,9 @@ if src is not None:
             chart_drop.line_chart(df.set_index("t")[["drop"]],  height=160, color=["#a78bfa"])
             chart_lux.line_chart(df.set_index("t")[["lux"]],   height=160, color=["#facc15"])
 
-    # Don't close serial — it's cached in session_state and reused next rerun.
-    # Only close MockSource (stateless) and trigger rerun to keep the stream alive.
-    if mock_mode:
-        src.close()
+    src.close()
     st.rerun()
 else:
-    # Close and discard the cached serial connection when stream is paused
-    cached = st.session_state.pop("serial_src", None)
-    if cached is not None:
-        try: cached.close()
-        except Exception: pass
     st.warning("Stream paused. Toggle **▶ Start stream** in the sidebar.")
 
 # Cleanup vision process on app exit
