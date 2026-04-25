@@ -8,6 +8,7 @@ __pycache__/
 
 # Vision log (generated at runtime, not source code)
 vision.log
+vision_process.log
 
 # YOLO model weights (auto-downloaded, do not commit)
 *.pt
