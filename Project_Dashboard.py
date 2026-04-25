@@ -356,16 +356,24 @@ class Packet:
 # ---------------------------------------------------------------------------
 class SerialSource:
     def __init__(self, port: str, baud: int = 115200):
-        self.ser = serial.Serial(port, baud, timeout=0.2)
+        # Timeout of 1.5 s — firmware buzzer delays can hold up a packet up to ~400 ms
+        self.ser = serial.Serial(port, baud, timeout=1.5)
         self.last_raw = ""
 
     def read(self) -> Packet | None:
         try:
             line = self.ser.readline().decode(errors="ignore")
-            if line:
-                self.last_raw = line.strip()
-            return Packet.parse(line) if line else None
-        except Exception:
+            stripped = line.strip()
+            if stripped:
+                self.last_raw = stripped
+                pkt = Packet.parse(stripped)
+                if pkt is None:
+                    # Keep the unparseable line visible in the debug monitor
+                    self.last_raw = f"[PARSE FAIL] {stripped}"
+                return pkt
+            return None
+        except Exception as exc:
+            self.last_raw = f"[READ ERROR] {exc}"
             return None
 
     def close(self):
