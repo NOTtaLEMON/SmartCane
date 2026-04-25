@@ -137,3 +137,13 @@ VISION|Person:0.57:2500,Person:0.55:1500
 [vision] Status: 2400 frames processed
 [vision] Status: 2500 frames processed
 [vision] Status: 2600 frames processed
+[vision] device=cpu  src=http://192.168.1.100:8080/video  model=yolov8n.pt
+[vision] Connecting to IP Webcam: http://192.168.1.100:8080/video
+[vision] ERROR: could not open stream http://192.168.1.100:8080/video
+[vision] Platform: Windows
+[vision] Check IP Webcam app is running and URL is correct
+[vision] Make sure phone and computer are on same network
+[tcp @ 00000188d887ec40] Connection to tcp://192.168.1.100:8080 failed: Error number -138 occurred
+[tcp @ 000001888712bb80] Connection to tcp://192.168.1.100:8080 failed: Error number -138 occurred
+[vision] device=cpu  src=http://192.168.1.100:8080/video  model=yolov8n.pt
+[vision] Connecting to IP Webcam: http://192.168.1.100:8080/video

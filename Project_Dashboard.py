@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import os
 import random
+import re
 import subprocess
 import sys
 import time
@@ -250,13 +251,44 @@ class Packet:
 
     @classmethod
     def parse(cls, line: str) -> "Packet | None":
-        parts = line.strip().split(",")
-        if len(parts) != 4:
+        raw = line.strip()
+        if not raw:
             return None
-        try:
-            return cls(int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]))
-        except ValueError:
-            return None
+
+        # Accept the original comma-separated packet format.
+        parts = [p.strip() for p in raw.split(",") if p.strip()]
+        if len(parts) == 4:
+            try:
+                return cls(int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]))
+            except ValueError:
+                pass
+
+        # Accept debug output from the Arduino firmware.
+        # Example: "Dist:123 LDR:456 Acc:789 OK DARK"
+        dist_match = re.search(r"Dist[:\s]*([0-9]+)", raw, re.IGNORECASE)
+        ldr_match = re.search(r"LDR[:\s]*([0-9]+)", raw, re.IGNORECASE)
+        fall_match = re.search(r"\bFALL\b", raw, re.IGNORECASE)
+
+        if dist_match and ldr_match:
+            dist = int(dist_match.group(1))
+            ldr = int(ldr_match.group(1))
+            fall = 1 if fall_match else 0
+            # No dedicated drop sensor in this firmware, so use the forward distance as a fallback.
+            drop = dist
+            return cls(dist, drop, fall, ldr)
+
+        # Still try a numeric fallback if the string contains three integers.
+        nums = re.findall(r"([0-9]+)", raw)
+        if len(nums) >= 3:
+            try:
+                dist = int(nums[0])
+                ldr = int(nums[1])
+                fall = 1 if fall_match else 0
+                return cls(dist, dist, fall, ldr)
+            except ValueError:
+                pass
+
+        return None
 
 
 # ---------------------------------------------------------------------------
