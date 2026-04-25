@@ -294,16 +294,24 @@ class Packet:
 # ---------------------------------------------------------------------------
 class SerialSource:
     def __init__(self, port: str, baud: int = 115200):
-        self.ser = serial.Serial(port, baud, timeout=0.2)
+        # Timeout 1.5 s — firmware buzzer delay() can hold up packets ~400 ms
+        self.ser = serial.Serial(port, baud, timeout=1.5)
         self.last_raw = ""
 
     def read(self) -> Packet | None:
         try:
             line = self.ser.readline().decode(errors="ignore")
-            if line:
-                self.last_raw = line.strip()
-            return Packet.parse(line) if line else None
-        except Exception:
+            stripped = line.strip()
+            if stripped:
+                pkt = Packet.parse(stripped)
+                if pkt is None:
+                    self.last_raw = f"[PARSE FAIL] {stripped}"
+                else:
+                    self.last_raw = stripped
+                return pkt
+            return None
+        except Exception as exc:
+            self.last_raw = f"[READ ERROR] {exc}"
             return None
 
     def close(self):
@@ -539,16 +547,37 @@ if "hist" not in st.session_state:
 if "serial_raw" not in st.session_state:
     st.session_state.serial_raw = []
 
-# --- Source ---
+# --- Source (cached in session state so the port stays open across reruns) ---
 src = None
 if start:
     if mock_mode:
         src = MockSource()
     elif HAS_SERIAL and port and port != "(none detected)":
-        try:
-            src = SerialSource(port, int(baud))
-        except Exception as e:
-            st.error(f"Could not open {port}: {e}")
+        cached = st.session_state.get("serial_src")
+        cached_ok = (
+            cached is not None
+            and getattr(cached, "_port", None) == port
+            and getattr(getattr(cached, "ser", None), "is_open", False)
+        )
+        if cached_ok:
+            src = cached
+        else:
+            if cached is not None:
+                try: cached.close()
+                except Exception: pass
+            st.session_state.pop("serial_src", None)
+            try:
+                new_src = SerialSource(port, int(baud))
+                new_src._port = port
+                st.session_state["serial_src"] = new_src
+                src = new_src
+            except PermissionError:
+                st.error(
+                    f"**Access denied on {port}.** Another program is using this port.\n\n"
+                    f"**Fix:** Close **Arduino IDE Serial Monitor** on this laptop, then refresh."
+                )
+            except Exception as e:
+                st.error(f"Could not open {port}: {e}")
 
 # ---------------------------------------------------------------------------
 #  Layout placeholders
@@ -597,7 +626,7 @@ with ch_col3:
 if src is not None:
     st.session_state.hist = deque(list(st.session_state.hist)[-window:], maxlen=500)
 
-    for _ in range(150):
+    for _ in range(5000):
         pkt = src.read()
         # Capture raw lines for the serial monitor (SerialSource only)
         if hasattr(src, "last_raw") and src.last_raw:
@@ -740,9 +769,16 @@ if src is not None:
             chart_drop.line_chart(df.set_index("t")[["drop"]],  height=160, color=["#a78bfa"])
             chart_lux.line_chart(df.set_index("t")[["lux"]],   height=160, color=["#facc15"])
 
-    src.close()
+    # Keep serial port alive — only close MockSource (stateless)
+    if mock_mode:
+        src.close()
     st.rerun()
 else:
+    # Release the cached serial port when stream is deliberately paused
+    cached = st.session_state.pop("serial_src", None)
+    if cached is not None:
+        try: cached.close()
+        except Exception: pass
     st.warning("Stream paused. Toggle **▶ Start stream** in the sidebar.")
 
 # Cleanup vision process on app exit
