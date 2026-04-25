@@ -146,6 +146,9 @@ def lux_label(val: int) -> tuple[str, str]:
 
 def parse_vision_line(raw: str) -> list[tuple[str, float, float]]:
     """Parse 'Person:0.91:800,Car:0.82:1200' → [('Person', 0.91, 800), ('Car', 0.82, 1200)]"""
+    if raw.strip().upper() == "NONE":
+        return []
+
     results = []
     for token in raw.split(","):
         token = token.strip()
@@ -560,8 +563,13 @@ if src is not None:
             lux_color, "💡"), unsafe_allow_html=True)
 
         # ---- Vision detections ----
-        vision_raw = read_latest_vision(Path(vision_log))
-        detections = parse_vision_line(vision_raw) if vision_raw else []
+        # Only read vision data if vision module is currently running
+        if vis_running:
+            vision_raw = read_latest_vision(Path(vision_log))
+            detections = parse_vision_line(vision_raw) if vision_raw else []
+        else:
+            # Clear detections when vision is offline
+            detections = []
 
         if detections:
             bars_html = "".join(confidence_bar_html(lbl, conf, dist) for lbl, conf, dist in detections[:6])
@@ -572,17 +580,27 @@ if src is not None:
 </div>
 """, unsafe_allow_html=True)
         else:
-            detection_ph.markdown("""
+            if vis_running:
+                detection_ph.markdown("""
 <div style="
   background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.10);
   border-radius:12px;padding:28px;text-align:center;color:#475569;font-size:0.9rem;">
   No objects currently detected<br>
-  <span style="font-size:0.75rem;">Waiting for vision module output…</span>
+  <span style="font-size:0.75rem;">Vision module is active - scanning for obstacles…</span>
+</div>""", unsafe_allow_html=True)
+            else:
+                detection_ph.markdown("""
+<div style="
+  background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.10);
+  border-radius:12px;padding:28px;text-align:center;color:#64748b;font-size:0.9rem;">
+  Vision module offline<br>
+  <span style="font-size:0.75rem;">Start vision to detect obstacles</span>
 </div>""", unsafe_allow_html=True)
 
         # ---- Proximity assessment panel ----
-        # Use closest detected object distance if available, otherwise fall back to ultrasonic sensor
-        if detections:
+        # Use closest detected object distance if available and vision is running.
+        # If no object is detected, reset the nearest distance display to 0 cm.
+        if detections and vis_running:
             closest_obj, closest_conf, closest_dist = detections[0]  # Already sorted by distance
             top_obj = closest_obj.title()
             top_emoji = obj_emoji(closest_obj)
@@ -592,14 +610,12 @@ if src is not None:
             zone_colors = {"CRITICAL": "#ff4b4b", "WARNING": "#ffa733", "CAUTION": "#f6c000", "CLEAR": "#21c55d"}
             zc = zone_colors.get(zone, "#21c55d")
         else:
-            # Fall back to ultrasonic sensor data when no vision detections
-            top_obj = "Unknown"
-            top_emoji = "📦"
-            fwd_pct = max(0, min(100, int((1 - pkt.dist_fwd / 2000) * 100)))  # 0mm=100%, 2000mm+=0%
-            zone = zone_label(pkt.dist_fwd)
-            fwd_c, _ = mm_to_readable(pkt.dist_fwd)
-            zone_colors = {"CRITICAL": "#ff4b4b", "WARNING": "#ffa733", "CAUTION": "#f6c000", "CLEAR": "#21c55d"}
-            zc = zone_colors.get(zone, "#21c55d")
+            top_obj = "No obstacle"
+            top_emoji = "✅"
+            fwd_pct = 0
+            zone = "CLEAR"
+            fwd_c = "0 cm"
+            zc = "#21c55d"
 
         zone_colors = {"CRITICAL": "#ff4b4b", "WARNING": "#ffa733", "CAUTION": "#f6c000", "CLEAR": "#21c55d"}
         zc = zone_colors.get(zone, "#21c55d")
@@ -637,7 +653,7 @@ if src is not None:
       <span>Far</span><span>Close</span>
     </div>
   </div>
-  {"" if not detections else f'''
+  {"" if not (detections and vis_running) else f'''
   <div style="margin-top:14px;border-top:1px solid rgba(255,255,255,0.07);padding-top:12px;">
     <div style="font-size:0.7rem;color:#64748b;margin-bottom:4px;">MOST LIKELY OBJECT</div>
     <div style="font-size:1.05rem;font-weight:600;color:#e2e8f0;">

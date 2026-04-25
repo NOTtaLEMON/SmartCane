@@ -127,6 +127,7 @@ def run(src: str, model_path: str, conf: float, show: bool) -> None:
 
     try:
         last_print = 0.0
+        last_print_no_detection = 0.0
         frame_count = 0
         first_frame = True
         
@@ -183,7 +184,7 @@ def run(src: str, model_path: str, conf: float, show: bool) -> None:
                     
                     detections.append((mapped, float(box.conf[0]), distance_mm))
 
-            # Throttle console output to ~5 Hz so the dashboard parser isn't flooded
+            # Throttle console output to avoid flooding the dashboard parser
             now = time.time()
             if detections and now - last_print > 0.2:
                 # Format: "VISION|Car:0.82:1200,Person:0.91:800" (label:conf:distance_mm)
@@ -193,6 +194,12 @@ def run(src: str, model_path: str, conf: float, show: bool) -> None:
                 log_file.write(output_line + "\n")
                 log_file.flush()
                 last_print = now
+            elif not detections and now - last_print_no_detection > 1.0:
+                output_line = "VISION|NONE"
+                print(output_line, flush=True)
+                log_file.write(output_line + "\n")
+                log_file.flush()
+                last_print_no_detection = now
             
             # Periodic status update every 100 frames
             if frame_count % 100 == 0:
