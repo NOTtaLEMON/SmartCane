@@ -31,6 +31,7 @@ import random
 import subprocess
 import sys
 import time
+import threading
 import urllib.parse
 import urllib.request
 from collections import deque
@@ -168,7 +169,19 @@ def parse_vision_line(raw: str) -> list[tuple[str, float, float]]:
                     pass
     return sorted(results, key=lambda x: x[2])  # Sort by distance (closest first)
 
-def confidence_bar_html(label: str, conf: float, dist_mm: float) -> str:
+def data_collection_thread(src):
+    while not st.session_state.stop_thread:
+        pkt = src.read()
+        if pkt is not None:
+            st.session_state.hist.append({
+                "t": time.time(),
+                "fwd":  pkt.dist_fwd,
+                "drop": pkt.dist_drop,
+                "fall": pkt.fall_flag,
+                "lux":  pkt.light_val,
+            })
+        time.sleep(0.05)  # Small delay to avoid busy loop
+    src.close()
     pct = int(conf * 100)
     emoji = obj_emoji(label)
     dist_str, dist_color = mm_to_readable(int(dist_mm))
@@ -459,6 +472,12 @@ with st.sidebar:
 if "hist" not in st.session_state:
     st.session_state.hist = deque(maxlen=500)
 
+if "data_thread" not in st.session_state:
+    st.session_state.data_thread = None
+
+if "stop_thread" not in st.session_state:
+    st.session_state.stop_thread = False
+
 # --- Source ---
 src = None
 if start:
@@ -469,6 +488,15 @@ if start:
             src = SerialSource(port, int(baud))
         except Exception as e:
             st.error(f"Could not open {port}: {e}")
+
+if src is not None and st.session_state.data_thread is None:
+    st.session_state.stop_thread = False
+    st.session_state.data_thread = threading.Thread(target=data_collection_thread, args=(src,))
+    st.session_state.data_thread.start()
+elif src is None and st.session_state.data_thread is not None:
+    st.session_state.stop_thread = True
+    st.session_state.data_thread.join()
+    st.session_state.data_thread = None
 
 # ---------------------------------------------------------------------------
 #  Layout placeholders
@@ -514,82 +542,76 @@ with ch_col3:
 # ---------------------------------------------------------------------------
 #  Main update loop
 # ---------------------------------------------------------------------------
-if src is not None:
-    st.session_state.hist = deque(list(st.session_state.hist)[-window:], maxlen=500)
+if st.session_state.hist:
+    df = pd.DataFrame(list(st.session_state.hist)[-window:])
 
-    for _ in range(150):
-        pkt = src.read()
-        if pkt is None:
-            time.sleep(0.05)
-            continue
+    # Get latest packet
+    latest = st.session_state.hist[-1]
+    pkt = type('Packet', (), {
+        'dist_fwd': latest['fwd'],
+        'dist_drop': latest['drop'],
+        'fall_flag': latest['fall'],
+        'light_val': latest['lux']
+    })()
 
-        st.session_state.hist.append({
-            "t": time.time(),
-            "fwd":  pkt.dist_fwd,
-            "drop": pkt.dist_drop,
-            "fall": pkt.fall_flag,
-            "lux":  pkt.light_val,
-        })
-        df = pd.DataFrame(list(st.session_state.hist)[-window:])
+    # ---- Fall banner ----
+    fall_banner_ph.markdown(fall_banner_html(bool(pkt.fall_flag)), unsafe_allow_html=True)
 
-        # ---- Fall banner ----
-        fall_banner_ph.markdown(fall_banner_html(bool(pkt.fall_flag)), unsafe_allow_html=True)
+    # ---- Sensor cards ----
+    fwd_str,  fwd_color  = mm_to_readable(pkt.dist_fwd)
+    drop_str, drop_color = mm_to_readable(pkt.dist_drop)
+    lux_str,  lux_color  = lux_label(pkt.light_val)
 
-        # ---- Sensor cards ----
-        fwd_str,  fwd_color  = mm_to_readable(pkt.dist_fwd)
-        drop_str, drop_color = mm_to_readable(pkt.dist_drop)
-        lux_str,  lux_color  = lux_label(pkt.light_val)
+    card_fwd.markdown(sensor_card_html(
+        "Front Obstacle", fwd_str,
+        f"Zone: {zone_label(pkt.dist_fwd)}",
+        fwd_color, "↔️"), unsafe_allow_html=True)
 
-        card_fwd.markdown(sensor_card_html(
-            "Front Obstacle", fwd_str,
-            f"Zone: {zone_label(pkt.dist_fwd)}",
-            fwd_color, "↔️"), unsafe_allow_html=True)
+    card_drop.markdown(sensor_card_html(
+        "Drop / Ledge", drop_str,
+        f"Zone: {zone_label(pkt.dist_drop)}",
+        drop_color, "⬇️"), unsafe_allow_html=True)
 
-        card_drop.markdown(sensor_card_html(
-            "Drop / Ledge", drop_str,
-            f"Zone: {zone_label(pkt.dist_drop)}",
-            drop_color, "⬇️"), unsafe_allow_html=True)
+    fall_color = "#ff4b4b" if pkt.fall_flag else "#21c55d"
+    card_fall.markdown(sensor_card_html(
+        "Fall Status",
+        "⚠️ FALL" if pkt.fall_flag else "Stable",
+        "IMU / accelerometer",
+        fall_color, "🏃"), unsafe_allow_html=True)
 
-        fall_color = "#ff4b4b" if pkt.fall_flag else "#21c55d"
-        card_fall.markdown(sensor_card_html(
-            "Fall Status",
-            "⚠️ FALL" if pkt.fall_flag else "Stable",
-            "IMU / accelerometer",
-            fall_color, "🏃"), unsafe_allow_html=True)
+    card_lux.markdown(sensor_card_html(
+        "Ambient Light", lux_str,
+        f"Raw ADC: {pkt.light_val}",
+        lux_color, "💡"), unsafe_allow_html=True)
 
-        card_lux.markdown(sensor_card_html(
-            "Ambient Light", lux_str,
-            f"Raw ADC: {pkt.light_val}",
-            lux_color, "💡"), unsafe_allow_html=True)
+    # ---- Vision detections ----
+    # Only read vision data if vision module is currently running
+    if vis_running:
+        vision_raw = read_latest_vision(Path(vision_log))
+        detections = parse_vision_line(vision_raw) if vision_raw else []
+    else:
+        # Clear detections when vision is offline
+        detections = []
 
-        # ---- Vision detections ----
-        # Only read vision data if vision module is currently running
-        if vis_running:
-            vision_raw = read_latest_vision(Path(vision_log))
-            detections = parse_vision_line(vision_raw) if vision_raw else []
-        else:
-            # Clear detections when vision is offline
-            detections = []
-
-        if detections:
-            bars_html = "".join(confidence_bar_html(lbl, conf, dist) for lbl, conf, dist in detections[:6])
-            detection_ph.markdown(f"""
+    if detections:
+        bars_html = "".join(confidence_bar_html(lbl, conf, dist) for lbl, conf, dist in detections[:6])
+        detection_ph.markdown(f"""
 <div style="padding:4px 0;">{bars_html}</div>
 <div style="font-size:0.72rem;color:#475569;margin-top:6px;">
   Last update: {time.strftime('%H:%M:%S')} &nbsp;·&nbsp; {len(detections)} object(s) in frame
 </div>
 """, unsafe_allow_html=True)
-        else:
-            if vis_running:
-                detection_ph.markdown("""
+    else:
+        if vis_running:
+            detection_ph.markdown("""
 <div style="
   background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.10);
   border-radius:12px;padding:28px;text-align:center;color:#475569;font-size:0.9rem;">
   No objects currently detected<br>
   <span style="font-size:0.75rem;">Vision module is active - scanning for obstacles…</span>
 </div>""", unsafe_allow_html=True)
-            else:
-                detection_ph.markdown("""
+        else:
+            detection_ph.markdown("""
 <div style="
   background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.10);
   border-radius:12px;padding:28px;text-align:center;color:#64748b;font-size:0.9rem;">
@@ -597,30 +619,30 @@ if src is not None:
   <span style="font-size:0.75rem;">Start vision to detect obstacles</span>
 </div>""", unsafe_allow_html=True)
 
-        # ---- Proximity assessment panel ----
-        # Use closest detected object distance if available and vision is running.
-        # If no object is detected, reset the nearest distance display to 0 cm.
-        if detections and vis_running:
-            closest_obj, closest_conf, closest_dist = detections[0]  # Already sorted by distance
-            top_obj = closest_obj.title()
-            top_emoji = obj_emoji(closest_obj)
-            fwd_pct = max(0, min(100, int((1 - closest_dist / 2000) * 100)))  # 0mm=100%, 2000mm+=0%
-            zone = zone_label(int(closest_dist))
-            fwd_c, _ = mm_to_readable(int(closest_dist))
-            zone_colors = {"CRITICAL": "#ff4b4b", "WARNING": "#ffa733", "CAUTION": "#f6c000", "CLEAR": "#21c55d"}
-            zc = zone_colors.get(zone, "#21c55d")
-        else:
-            top_obj = "No obstacle"
-            top_emoji = "✅"
-            fwd_pct = 0
-            zone = "CLEAR"
-            fwd_c = "0 cm"
-            zc = "#21c55d"
-
+    # ---- Proximity assessment panel ----
+    # Use closest detected object distance if available and vision is running.
+    # If no object is detected, reset the nearest distance display to 0 cm.
+    if detections and vis_running:
+        closest_obj, closest_conf, closest_dist = detections[0]  # Already sorted by distance
+        top_obj = closest_obj.title()
+        top_emoji = obj_emoji(closest_obj)
+        fwd_pct = max(0, min(100, int((1 - closest_dist / 2000) * 100)))  # 0mm=100%, 2000mm+=0%
+        zone = zone_label(int(closest_dist))
+        fwd_c, _ = mm_to_readable(int(closest_dist))
         zone_colors = {"CRITICAL": "#ff4b4b", "WARNING": "#ffa733", "CAUTION": "#f6c000", "CLEAR": "#21c55d"}
         zc = zone_colors.get(zone, "#21c55d")
+    else:
+        top_obj = "No obstacle"
+        top_emoji = "✅"
+        fwd_pct = 0
+        zone = "CLEAR"
+        fwd_c = "0 cm"
+        zc = "#21c55d"
 
-        proximity_ph.markdown(f"""
+    zone_colors = {"CRITICAL": "#ff4b4b", "WARNING": "#ffa733", "CAUTION": "#f6c000", "CLEAR": "#21c55d"}
+    zc = zone_colors.get(zone, "#21c55d")
+
+    proximity_ph.markdown(f"""
 <div style="
   background:linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01));
   border:1px solid {zc}44;border-radius:14px;padding:20px 18px;
@@ -663,14 +685,15 @@ if src is not None:
 </div>
 """, unsafe_allow_html=True)
 
-        # ---- Charts ----
-        if not df.empty:
-            chart_fwd.line_chart(df.set_index("t")[["fwd"]],   height=160, color=["#38bdf8"])
-            chart_drop.line_chart(df.set_index("t")[["drop"]],  height=160, color=["#a78bfa"])
-            chart_lux.line_chart(df.set_index("t")[["lux"]],   height=160, color=["#facc15"])
+    # ---- Charts ----
+    if not df.empty:
+        chart_fwd.line_chart(df.set_index("t")[["fwd"]],   height=160, color=["#38bdf8"])
+        chart_drop.line_chart(df.set_index("t")[["drop"]],  height=160, color=["#a78bfa"])
+        chart_lux.line_chart(df.set_index("t")[["lux"]],   height=160, color=["#facc15"])
 
-    src.close()
-    st.rerun()
+# Auto-rerun every 2 seconds to update UI
+time.sleep(2)
+st.rerun()
 else:
     st.warning("Stream paused. Toggle **▶ Start stream** in the sidebar.")
 
@@ -684,3 +707,6 @@ def cleanup_vision():
             st.session_state.vision_process.wait(timeout=2)
         except:
             pass
+    if "data_thread" in st.session_state and st.session_state.data_thread:
+        st.session_state.stop_thread = True
+        st.session_state.data_thread.join(timeout=2)
