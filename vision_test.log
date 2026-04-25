@@ -1,0 +1,5 @@
+[vision] device=cpu  src=http://10.122.158.116:8080/video  model=yolov8n.pt
+[vision] Connecting to IP Webcam: http://10.122.158.116:8080/video
+[vision] Camera opened successfully - frame size: (1080, 1920, 3)
+[vision] IP Webcam stream active - ready for object detection
+[vision] Status: 100 frames processed

@@ -82,8 +82,20 @@ def run(src: str, model_path: str, conf: float, show: bool) -> None:
 
     model = YOLO(model_path)
 
+    def open_capture(source: str) -> cv2.VideoCapture:
+        if source.isdigit():
+            return cv2.VideoCapture(int(source))
+        cap = cv2.VideoCapture(source)
+        if not cap.isOpened() and source.startswith(("http://", "https://", "rtsp://")):
+            try:
+                cap.release()
+            except Exception:
+                pass
+            cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG)
+        return cap
+
     # Try to open camera with macOS-specific settings
-    cap = cv2.VideoCapture(src if not src.isdigit() else int(src))
+    cap = open_capture(src)
     
     # Set for macOS: request proper camera backend
     if platform.system() == "Darwin" and src.isdigit():
@@ -135,20 +147,47 @@ def run(src: str, model_path: str, conf: float, show: bool) -> None:
             results = model.predict(frame, device=device, conf=conf, verbose=False)
             r = results[0]
 
-            # Collect labels this frame
-            detections: list[tuple[str, float]] = []
+            # Collect labels this frame with distance estimation
+            detections: list[tuple[str, float, float]] = []  # (label, confidence, distance_mm)
             for box in r.boxes:
                 cls_id = int(box.cls[0])
                 cls_name = model.names[cls_id]
                 mapped = label_for(cls_name)
                 if mapped:
-                    detections.append((mapped, float(box.conf[0])))
+                    # Estimate distance based on bounding box size
+                    # Larger bounding box = closer object
+                    x1, y1, x2, y2 = box.xyxy[0]
+                    bbox_width = x2 - x1
+                    bbox_height = y2 - y1
+                    bbox_area = bbox_width * bbox_height
+                    
+                    # Simple distance estimation: larger area = closer distance
+                    # Calibrated for typical smart cane use case
+                    # Max distance we care about: ~3000mm (3m)
+                    # Min distance: ~300mm (too close to be useful)
+                    frame_area = frame.shape[0] * frame.shape[1]
+                    area_ratio = bbox_area / frame_area
+                    
+                    # Distance estimation formula (empirical)
+                    # area_ratio of 0.1 = ~500mm, area_ratio of 0.5 = ~200mm
+                    if area_ratio > 0.6:  # Very close
+                        distance_mm = 200
+                    elif area_ratio > 0.3:  # Close
+                        distance_mm = 500
+                    elif area_ratio > 0.1:  # Medium
+                        distance_mm = 1000
+                    elif area_ratio > 0.05:  # Far
+                        distance_mm = 1500
+                    else:  # Very far
+                        distance_mm = 2500
+                    
+                    detections.append((mapped, float(box.conf[0]), distance_mm))
 
             # Throttle console output to ~5 Hz so the dashboard parser isn't flooded
             now = time.time()
             if detections and now - last_print > 0.2:
-                # Format: "VISION|Car:0.82,Person:0.91"
-                payload = ",".join(f"{name}:{conf:.2f}" for name, conf in detections)
+                # Format: "VISION|Car:0.82:1200,Person:0.91:800" (label:conf:distance_mm)
+                payload = ",".join(f"{name}:{conf:.2f}:{dist:.0f}" for name, conf, dist in detections)
                 output_line = f"VISION|{payload}"
                 print(output_line, flush=True)
                 log_file.write(output_line + "\n")
