@@ -26,13 +26,17 @@
 
 from __future__ import annotations
 
+import os
 import random
 import subprocess
 import sys
 import time
+import urllib.parse
+import urllib.request
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 
 import pandas as pd
 import streamlit as st
@@ -57,6 +61,62 @@ OBJECT_EMOJI: dict[str, str] = {
 
 def obj_emoji(label: str) -> str:
     return OBJECT_EMOJI.get(label.lower(), "📦")
+
+
+def normalize_ip_webcam_url(url: str) -> str:
+    url = url.strip()
+    if not url:
+        return ""
+
+    parsed = urllib.parse.urlparse(url)
+    if not parsed.scheme:
+        parsed = urllib.parse.urlparse("http://" + url)
+
+    if parsed.scheme in {"http", "https"} and parsed.path in {"", "/"}:
+        parsed = parsed._replace(path="/video")
+
+    return urllib.parse.urlunparse(parsed)
+
+
+def check_ip_webcam_url(url: str, timeout: int = 5) -> tuple[bool, str, str]:
+    if not url:
+        return False, "URL is empty", url
+
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        return True, "Only HTTP URLs are validated automatically", url
+
+    candidates = [url]
+    base = urllib.parse.urlunparse(parsed._replace(path="", params="", query="", fragment=""))
+    fallback_paths = ["/video", "/shot.jpg", "/videofeed", "/h264", "/h264_ulaw.sdp"]
+    if parsed.path in {"", "/", "/video"}:
+        for path in fallback_paths:
+            candidate = urllib.parse.urljoin(base, path)
+            if candidate not in candidates:
+                candidates.append(candidate)
+    else:
+        for path in fallback_paths:
+            candidate = urllib.parse.urljoin(base, path)
+            if candidate not in candidates:
+                candidates.append(candidate)
+
+    last_error = "Connection failed"
+    for candidate in candidates:
+        try:
+            req = urllib.request.Request(candidate, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                resp.read(64)
+                content_type = resp.headers.get("Content-Type", "unknown")
+            return True, f"Connected to webcam stream ({candidate} / {content_type})", candidate
+        except HTTPError as e:
+            last_error = f"HTTP error {e.code}: {e.reason} on {candidate}"
+        except URLError as e:
+            last_error = f"URL error: {e.reason} on {candidate}"
+        except Exception as e:
+            last_error = f"Connection failed: {e} on {candidate}"
+
+    return False, last_error, url
+
 
 def mm_to_readable(mm: int) -> tuple[str, str]:
     """Return (human-readable string, zone colour)."""
@@ -84,22 +144,31 @@ def lux_label(val: int) -> tuple[str, str]:
     if val < 800:   return "Moderate 🌤️",  "#38bdf8"
     return "Bright ☀️",                     "#facc15"
 
-def parse_vision_line(raw: str) -> list[tuple[str, float]]:
-    """Parse 'Person:0.91,Car:0.82' → [('Person', 0.91), ('Car', 0.82)]"""
+def parse_vision_line(raw: str) -> list[tuple[str, float, float]]:
+    """Parse 'Person:0.91:800,Car:0.82:1200' → [('Person', 0.91, 800), ('Car', 0.82, 1200)]"""
     results = []
     for token in raw.split(","):
         token = token.strip()
         if ":" in token:
-            label, _, conf_str = token.partition(":")
-            try:
-                results.append((label.strip(), float(conf_str.strip())))
-            except ValueError:
-                pass
-    return sorted(results, key=lambda x: x[1], reverse=True)
+            parts = token.split(":")
+            if len(parts) == 3:
+                label, conf_str, dist_str = parts
+                try:
+                    results.append((label.strip(), float(conf_str.strip()), float(dist_str.strip())))
+                except ValueError:
+                    pass
+            elif len(parts) == 2:  # Fallback for old format without distance
+                label, conf_str = parts
+                try:
+                    results.append((label.strip(), float(conf_str.strip()), 1000.0))  # Default distance
+                except ValueError:
+                    pass
+    return sorted(results, key=lambda x: x[2])  # Sort by distance (closest first)
 
-def confidence_bar_html(label: str, conf: float) -> str:
+def confidence_bar_html(label: str, conf: float, dist_mm: float) -> str:
     pct = int(conf * 100)
     emoji = obj_emoji(label)
+    dist_str, dist_color = mm_to_readable(int(dist_mm))
     if pct >= 85:   bar_color = "#21c55d"
     elif pct >= 65: bar_color = "#f6c000"
     else:           bar_color = "#ffa733"
@@ -121,6 +190,10 @@ def confidence_bar_html(label: str, conf: float) -> str:
   <div style="background:rgba(255,255,255,0.10);border-radius:6px;height:8px;overflow:hidden;">
     <div style="width:{pct}%;height:100%;background:{bar_color};
                 border-radius:6px;transition:width 0.4s ease;"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+    <span style="font-size:0.8rem;color:#94a3b8;">Distance: {dist_str}</span>
+    <span style="font-size:0.7rem;color:{dist_color};font-weight:600;">{zone_label(int(dist_mm))}</span>
   </div>
 </div>"""
 
@@ -313,12 +386,29 @@ with st.sidebar:
         if st.button("▶ Start", type="primary", use_container_width=True):
             if st.session_state.vision_process is None:
                 try:
-                    cmd = [sys.executable, "Universal_Vision.py",
-                           "--src", ip_webcam_url,
+                    resolved_src = normalize_ip_webcam_url(ip_webcam_url)
+                    
+                    # Skip URL validation for now - let vision module handle it
+                    if resolved_src.startswith(("http://", "https://")):
+                        st.info(f"Attempting to connect to: {resolved_src}")
+                    else:
+                        st.info(f"Using local camera: {resolved_src}")
+
+                    vision_script = Path(__file__).resolve().parent / "Universal_Vision.py"
+                    log_path = Path(__file__).resolve().parent / "vision_process.log"
+                    log_handle = open(log_path, "a", buffering=1)
+                    cmd = [sys.executable, str(vision_script),
+                           "--src", resolved_src,
                            "--model", vision_model,
                            "--conf", str(vision_conf)]
-                    st.session_state.vision_process = subprocess.Popen(cmd)
-                    st.success("Vision started!")
+                    st.session_state.vision_process = subprocess.Popen(
+                        cmd,
+                        cwd=str(Path(__file__).resolve().parent),
+                        stdout=log_handle,
+                        stderr=log_handle,
+                    )
+                    st.session_state.vision_log_path = str(log_path)
+                    st.success(f"Vision started using {resolved_src}")
                     time.sleep(2)
                     st.rerun()
                 except Exception as e:
@@ -344,6 +434,16 @@ with st.sidebar:
         f'<div style="text-align:center;font-size:0.8rem;color:{"#21c55d" if vis_running else "#ef4444"};">'
         f'{"🟢 Vision active" if vis_running else "🔴 Vision offline"}</div>',
         unsafe_allow_html=True)
+
+    if "vision_log_path" in st.session_state:
+        try:
+            log_path = Path(st.session_state.vision_log_path)
+            if log_path.exists():
+                with log_path.open("r", encoding="utf-8", errors="ignore") as f:
+                    lines = f.readlines()[-15:]
+                st.text_area("Vision process log", value="".join(lines), height=220)
+        except Exception:
+            pass
 
     st.markdown('<hr class="divider">', unsafe_allow_html=True)
     st.markdown('<div class="section-label">Display</div>', unsafe_allow_html=True)
@@ -464,7 +564,7 @@ if src is not None:
         detections = parse_vision_line(vision_raw) if vision_raw else []
 
         if detections:
-            bars_html = "".join(confidence_bar_html(lbl, conf) for lbl, conf in detections[:6])
+            bars_html = "".join(confidence_bar_html(lbl, conf, dist) for lbl, conf, dist in detections[:6])
             detection_ph.markdown(f"""
 <div style="padding:4px 0;">{bars_html}</div>
 <div style="font-size:0.72rem;color:#475569;margin-top:6px;">
@@ -481,11 +581,25 @@ if src is not None:
 </div>""", unsafe_allow_html=True)
 
         # ---- Proximity assessment panel ----
-        top_obj  = detections[0][0].title() if detections else "Unknown"
-        top_emoji = obj_emoji(detections[0][0]) if detections else "📦"
-        fwd_pct  = max(0, min(100, int((1 - pkt.dist_fwd / 2000) * 100)))  # 0mm=100%, 2000mm+=0%
-        zone     = zone_label(pkt.dist_fwd)
-        fwd_c, _ = mm_to_readable(pkt.dist_fwd)
+        # Use closest detected object distance if available, otherwise fall back to ultrasonic sensor
+        if detections:
+            closest_obj, closest_conf, closest_dist = detections[0]  # Already sorted by distance
+            top_obj = closest_obj.title()
+            top_emoji = obj_emoji(closest_obj)
+            fwd_pct = max(0, min(100, int((1 - closest_dist / 2000) * 100)))  # 0mm=100%, 2000mm+=0%
+            zone = zone_label(int(closest_dist))
+            fwd_c, _ = mm_to_readable(int(closest_dist))
+            zone_colors = {"CRITICAL": "#ff4b4b", "WARNING": "#ffa733", "CAUTION": "#f6c000", "CLEAR": "#21c55d"}
+            zc = zone_colors.get(zone, "#21c55d")
+        else:
+            # Fall back to ultrasonic sensor data when no vision detections
+            top_obj = "Unknown"
+            top_emoji = "📦"
+            fwd_pct = max(0, min(100, int((1 - pkt.dist_fwd / 2000) * 100)))  # 0mm=100%, 2000mm+=0%
+            zone = zone_label(pkt.dist_fwd)
+            fwd_c, _ = mm_to_readable(pkt.dist_fwd)
+            zone_colors = {"CRITICAL": "#ff4b4b", "WARNING": "#ffa733", "CAUTION": "#f6c000", "CLEAR": "#21c55d"}
+            zc = zone_colors.get(zone, "#21c55d")
 
         zone_colors = {"CRITICAL": "#ff4b4b", "WARNING": "#ffa733", "CAUTION": "#f6c000", "CLEAR": "#21c55d"}
         zc = zone_colors.get(zone, "#21c55d")
