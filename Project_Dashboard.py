@@ -756,16 +756,29 @@ if "hist" not in st.session_state:
 if "serial_raw" not in st.session_state:
     st.session_state.serial_raw = []
 
-# --- Source ---
+# --- Source (cached in session state to survive reruns without closing) ---
 src = None
 if start:
     if mock_mode:
+        # MockSource is lightweight – recreate each run
         src = MockSource()
     elif HAS_SERIAL and port and port != "(none detected)":
-        try:
-            src = SerialSource(port, int(baud))
-        except Exception as e:
-            st.error(f"Could not open {port}: {e}")
+        # Reuse an existing open serial connection if port hasn't changed
+        cached = st.session_state.get("serial_src")
+        if cached is not None and getattr(cached, "_port", None) == port:
+            src = cached
+        else:
+            # Close old connection if port changed
+            if cached is not None:
+                try: cached.close()
+                except Exception: pass
+            try:
+                new_src = SerialSource(port, int(baud))
+                new_src._port = port
+                st.session_state["serial_src"] = new_src
+                src = new_src
+            except Exception as e:
+                st.error(f"Could not open {port}: {e}")
 
 # ---------------------------------------------------------------------------
 #  Layout placeholders
@@ -814,7 +827,7 @@ with ch_col3:
 if src is not None:
     st.session_state.hist = deque(list(st.session_state.hist)[-window:], maxlen=500)
 
-    for _ in range(150):
+    for _ in range(5000):
         pkt = src.read()
         # Capture raw lines for the serial monitor (SerialSource only)
         if hasattr(src, "last_raw") and src.last_raw:
@@ -966,9 +979,17 @@ if src is not None:
             chart_drop.line_chart(df.set_index("t")[["drop"]],  height=160, color=["#a78bfa"])
             chart_lux.line_chart(df.set_index("t")[["lux"]],   height=160, color=["#facc15"])
 
-    src.close()
+    # Don't close serial — it's cached in session_state and reused next rerun.
+    # Only close MockSource (stateless) and trigger rerun to keep the stream alive.
+    if mock_mode:
+        src.close()
     st.rerun()
 else:
+    # Close and discard the cached serial connection when stream is paused
+    cached = st.session_state.pop("serial_src", None)
+    if cached is not None:
+        try: cached.close()
+        except Exception: pass
     st.warning("Stream paused. Toggle **▶ Start stream** in the sidebar.")
 
 # Cleanup vision process on app exit
