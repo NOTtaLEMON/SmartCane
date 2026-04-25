@@ -773,18 +773,30 @@ if start:
     elif HAS_SERIAL and port and port != "(none detected)":
         # Reuse an existing open serial connection if port hasn't changed
         cached = st.session_state.get("serial_src")
-        if cached is not None and getattr(cached, "_port", None) == port:
+        cached_ok = (
+            cached is not None
+            and getattr(cached, "_port", None) == port
+            and getattr(getattr(cached, "ser", None), "is_open", False)
+        )
+        if cached_ok:
             src = cached
         else:
-            # Close old connection if port changed
+            # Close stale/wrong-port connection before opening a new one
             if cached is not None:
                 try: cached.close()
                 except Exception: pass
+            st.session_state.pop("serial_src", None)
             try:
                 new_src = SerialSource(port, int(baud))
                 new_src._port = port
                 st.session_state["serial_src"] = new_src
                 src = new_src
+            except PermissionError:
+                st.error(
+                    f"**Access denied on {port}.** Another program is using this port.\n\n"
+                    f"**Fix:** Close **Arduino IDE Serial Monitor** (or any other serial terminal) "
+                    f"on the teammate's laptop, then refresh this page."
+                )
             except Exception as e:
                 st.error(f"Could not open {port}: {e}")
 
