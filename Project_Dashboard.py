@@ -504,13 +504,9 @@ card_lux  = c4.empty()
 
 st.divider()
 
-det_col, prox_col = st.columns([3, 2])
-with det_col:
+with st.container():
     st.subheader("Camera-Based Object Detection")
     detection_ph = st.empty()
-with prox_col:
-    st.subheader("📏 Proximity")
-    proximity_ph = st.empty()
 
 st.divider()
 st.subheader("📈 Sensor History")
@@ -596,13 +592,6 @@ if src is not None:
                     st.progress(pct, text=f"{pct}% confidence")
             else:
                 st.info("No object detected")
-
-        # Proximity
-        prox_pct = max(0, min(100, int((1 - pkt.dist_fwd / 2000) * 100)))
-        zone     = zone_label(pkt.dist_fwd)
-        with proximity_ph.container():
-            st.metric(label=f"Nearest obstacle -- {zone}", value=mm_to_readable(pkt.dist_fwd))
-            st.progress(prox_pct)
 
         # Charts
         if not df.empty:
