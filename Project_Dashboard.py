@@ -259,6 +259,14 @@ with st.sidebar:
     start      = st.toggle("Start stream", value=True)
 
     st.divider()
+    st.subheader("Alert Thresholds")
+    thr_fwd    = st.slider("Forward obstacle — warn below (mm)", 100, 1500, 300, 50)
+    thr_drop   = st.slider("Drop / ledge — warn below (mm)", 100, 800, 300, 50)
+    thr_dark   = st.slider("Light: very dark below (raw)", 50, 600, 200, 25)
+    thr_dim    = st.slider("Light: dim below (raw)", 100, 800, 500, 25)
+    alert_cool = st.slider("Alert cooldown (s)", 1, 30, 5, 1)
+
+    st.divider()
     with st.expander("Raw Serial Monitor"):
         if "serial_raw" not in st.session_state:
             st.session_state.serial_raw = []
@@ -287,6 +295,10 @@ if "hist" not in st.session_state:
     st.session_state.hist = deque(maxlen=500)
 if "serial_raw" not in st.session_state:
     st.session_state.serial_raw = []
+if "alert_times" not in st.session_state:
+    st.session_state.alert_times = {}
+if "alert_log" not in st.session_state:
+    st.session_state.alert_log = []
 
 # ---------------------------------------------------------------------------
 #  Open source (cached so the port stays open across reruns)
@@ -361,6 +373,10 @@ with ch3:
     st.caption("Ambient Light")
     chart_lux  = st.empty()
 
+st.divider()
+st.subheader("Alert Log")
+alert_log_ph = st.empty()
+
 # ---------------------------------------------------------------------------
 #  Main loop
 # ---------------------------------------------------------------------------
@@ -388,11 +404,37 @@ if src is not None:
         })
         df = pd.DataFrame(list(st.session_state.hist)[-window:])
 
+        # ---------------------------------------------------------------
+        #  Threshold alerts (toast popups + log)
+        # ---------------------------------------------------------------
+        _now = time.time()
+
+        def _alert(key: str, msg: str, icon: str, cool: float = float(alert_cool)) -> None:
+            last = st.session_state.alert_times.get(key, 0.0)
+            if _now - last >= cool:
+                st.toast(msg, icon=icon)
+                st.session_state.alert_times[key] = _now
+                st.session_state.alert_log.insert(
+                    0, {"Time": time.strftime("%H:%M:%S"), "Alert": f"{icon} {msg}"}
+                )
+                st.session_state.alert_log = st.session_state.alert_log[:50]
+
+        if pkt.fall_flag:
+            _alert("fall", "FALL DETECTED — cane user may need help!", "🚨", cool=3)
+        if pkt.dist_fwd < thr_fwd:
+            _alert("fwd", f"Obstacle very close: {pkt.dist_fwd} mm ahead", "⚠️")
+        if pkt.dist_drop < thr_drop:
+            _alert("drop", f"Drop / ledge: {pkt.dist_drop} mm", "⚠️")
+        if pkt.light_val < thr_dark:
+            _alert("dark", f"Very dark environment (light={pkt.light_val})", "🌑")
+        elif pkt.light_val < thr_dim:
+            _alert("dim", f"Dim lighting (light={pkt.light_val})", "🌙")
+
         # Fall banner
         if pkt.fall_flag:
-            fall_ph.error("FALL DETECTED -- ALERT TRIGGERED")
+            fall_ph.error("🚨 FALL DETECTED — ALERT TRIGGERED")
         else:
-            fall_ph.success("No fall detected -- IMU stable")
+            fall_ph.success("No fall detected — IMU stable")
 
         # Sensor cards
         card_fwd.metric(
@@ -443,6 +485,16 @@ if src is not None:
             chart_fwd.line_chart(df.set_index("t")[["fwd"]],   height=160)
             chart_drop.line_chart(df.set_index("t")[["drop"]], height=160)
             chart_lux.line_chart(df.set_index("t")[["lux"]],   height=160)
+
+        # Alert log
+        if st.session_state.alert_log:
+            alert_log_ph.dataframe(
+                pd.DataFrame(st.session_state.alert_log),
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            alert_log_ph.caption("No alerts yet.")
 
     # Keep serial port alive between reruns -- only close mock source
     if mock_mode:
