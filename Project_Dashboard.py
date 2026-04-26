@@ -589,7 +589,7 @@ if src is not None:
                 pct = int(conf * 100)
                 emoji = object_emoji(lbl)
                 bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
-                lines.append(f"{emoji} **{lbl.title()}**  \n`{bar}` {pct}%\n")
+                lines.append(f"{emoji} May be: **{lbl.title()}**  \n`{bar}` {pct}%\n")
             detection_ph.success("\n".join(lines))
         else:
             detection_ph.info("No object detected")
