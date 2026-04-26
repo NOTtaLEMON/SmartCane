@@ -411,13 +411,13 @@ card_lux  = c4.empty()
 
 st.divider()
 
-det_col, prox_col = st.columns([3, 2])
+det_col, conf_col = st.columns([3, 2])
 with det_col:
     st.subheader("Object Detection")
     detection_ph = st.empty()
-with prox_col:
-    st.subheader("Proximity")
-    proximity_ph = st.empty()
+with conf_col:
+    st.subheader("Detection Confidence")
+    confidence_ph = st.empty()
 
 st.divider()
 st.subheader("Sensor History")
@@ -624,17 +624,15 @@ if src is not None:
         else:
             detection_ph.info("NO OBJECT DETECTED")
 
-        # Proximity — zone-coloured cards (distinct from the sensor metric cards above)
-        prox_pct  = max(0, min(100, int((1 - pkt.dist_fwd / 2000) * 100)))
-        fwd_zone  = zone_label(pkt.dist_fwd)
-        drop_zone = zone_label(pkt.dist_drop)
-        with proximity_ph.container():
-            st.markdown(
-                zone_card_html("Forward obstacle", mm_to_readable(pkt.dist_fwd), fwd_zone)
-                + zone_card_html("Drop / ledge", mm_to_readable(pkt.dist_drop), drop_zone),
-                unsafe_allow_html=True,
-            )
-            st.progress(prox_pct, text=f"Proximity index: {prox_pct}%")
+        # Confidence bars
+        with confidence_ph.container():
+            if valid_detections:
+                for lbl, conf in valid_detections[:6]:
+                    pct = int(conf * 100)
+                    st.caption(f"{lbl.title()}")
+                    st.progress(pct, text=f"{pct}%")
+            else:
+                st.caption("No detections above threshold")
 
         # Charts
         if not df.empty:
