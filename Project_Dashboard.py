@@ -169,6 +169,7 @@ st.set_page_config(page_title="Smart Cane Dashboard", layout="wide", page_icon="
 
 st.title("🦯 Smart Cane Clip-On")
 st.caption("Real-time obstacle detection & fall monitoring dashboard")
+conn_status_ph = st.empty()
 st.divider()
 
 # ---------------------------------------------------------------------------
@@ -299,6 +300,32 @@ if "alert_times" not in st.session_state:
     st.session_state.alert_times = {}
 if "alert_log" not in st.session_state:
     st.session_state.alert_log = []
+if "vision_last_seen" not in st.session_state:
+    st.session_state.vision_last_seen = 0.0
+
+# ---------------------------------------------------------------------------
+#  Connection status (drawn once before loop, updated inside loop)
+# ---------------------------------------------------------------------------
+
+def _render_conn_status(serial_ok: bool, serial_label: str,
+                        vision_ok: bool, vision_label: str) -> None:
+    s_dot = "🟢" if serial_ok else "🔴"
+    v_dot = "🟢" if vision_ok else "🔴"
+    conn_status_ph.markdown(
+        f"{s_dot} **ESP32 Serial** &nbsp; {serial_label} &emsp;&emsp;"
+        f"{v_dot} **Vision Module** &nbsp; {vision_label}",
+        unsafe_allow_html=True,
+    )
+
+# Initial static render (before stream starts)
+_serial_init_label = "Mock (simulated)" if mock_mode else (f"{port} @ {baud}" if port else "No port selected")
+_vision_init_ok    = st.session_state.vision_process is not None
+_render_conn_status(
+    serial_ok=mock_mode or bool(st.session_state.get("serial_src")),
+    serial_label=_serial_init_label,
+    vision_ok=_vision_init_ok,
+    vision_label="Active" if _vision_init_ok else "Offline",
+)
 
 # ---------------------------------------------------------------------------
 #  Open source (cached so the port stays open across reruns)
@@ -460,6 +487,34 @@ if src is not None:
         # Vision detections
         vision_raw = read_latest_vision(Path(vision_log))
         detections = parse_vision_line(vision_raw) if vision_raw else []
+
+        # Update vision_last_seen timestamp
+        if vision_raw:
+            st.session_state.vision_last_seen = time.time()
+
+        # ---------------------------------------------------------------
+        #  Connection status update
+        # ---------------------------------------------------------------
+        _vis_process_alive = (
+            st.session_state.vision_process is not None
+            and st.session_state.vision_process.poll() is None
+        )
+        _secs_ago = int(time.time() - st.session_state.vision_last_seen)
+        if not _vis_process_alive:
+            _vis_label = "Offline"
+        elif st.session_state.vision_last_seen == 0.0:
+            _vis_label = "Running — no data yet"
+        elif _secs_ago < 5:
+            _vis_label = f"Active ({_secs_ago}s ago)"
+        else:
+            _vis_label = f"Stale ({_secs_ago}s ago)"
+        _vis_ok = _vis_process_alive and st.session_state.vision_last_seen > 0 and _secs_ago < 5
+
+        _serial_ok    = mock_mode or (
+            hasattr(src, "ser") and getattr(src.ser, "is_open", False)
+        )
+        _serial_label = "Mock (simulated)" if mock_mode else f"{port} @ {baud}"
+        _render_conn_status(_serial_ok, _serial_label, _vis_ok, _vis_label)
 
         # Filter detections by confidence threshold (>50%)
         valid_detections = [(lbl, conf) for lbl, conf in detections if conf * 100 > 50]
