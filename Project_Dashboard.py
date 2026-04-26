@@ -449,18 +449,32 @@ if src is not None:
 
         if pkt.fall_flag:
             _alert("fall", "FALL DETECTED — cane user may need help!", "🚨", cool=3)
-        if pkt.dist_fwd < thr_fwd:
-            _alert("fwd", f"Obstacle very close: {pkt.dist_fwd} mm ahead", "⚠️")
-        if pkt.dist_drop < thr_drop:
+        if pkt.dist_fwd < 100:  # 10 cm -- ultra-close, always alert regardless of slider
+            _alert("fwd_critical", f"OBSTACLE CRITICAL: only {pkt.dist_fwd} mm away!", "🚨", cool=2)
+        elif pkt.dist_fwd < thr_fwd:
+            _alert("fwd", f"Obstacle close: {pkt.dist_fwd} mm ahead", "⚠️")
+        if pkt.dist_drop < 100:
+            _alert("drop_critical", f"DROP CRITICAL: ledge only {pkt.dist_drop} mm away!", "🚨", cool=2)
+        elif pkt.dist_drop < thr_drop:
             _alert("drop", f"Drop / ledge: {pkt.dist_drop} mm", "⚠️")
         if pkt.light_val < thr_dark:
-            _alert("dark", f"Very dark environment (light={pkt.light_val})", "🌑")
+            _alert("dark", f"Very dark environment — low visibility (light={pkt.light_val})", "🌑")
         elif pkt.light_val < thr_dim:
-            _alert("dim", f"Dim lighting (light={pkt.light_val})", "🌙")
+            _alert("dim", f"Dim lighting — reduced visibility (light={pkt.light_val})", "🌙")
 
         # Fall banner
         if pkt.fall_flag:
             fall_ph.error("🚨 FALL DETECTED — ALERT TRIGGERED")
+        elif pkt.dist_fwd < 100:
+            fall_ph.error(f"🚨 OBSTACLE CRITICAL — only {pkt.dist_fwd} mm ahead!")
+        elif pkt.dist_fwd < thr_fwd:
+            fall_ph.warning(f"⚠️ Obstacle close — {pkt.dist_fwd} mm ahead")
+        elif pkt.dist_drop < thr_drop:
+            fall_ph.warning(f"⚠️ Drop / ledge detected — {pkt.dist_drop} mm")
+        elif pkt.light_val < thr_dark:
+            fall_ph.warning(f"🌑 Very dark environment — light level {pkt.light_val}")
+        elif pkt.light_val < thr_dim:
+            fall_ph.warning(f"🌙 Dim lighting — light level {pkt.light_val}")
         else:
             fall_ph.success("No fall detected — IMU stable")
 
@@ -519,6 +533,27 @@ if src is not None:
 
         # Filter detections by confidence threshold (>50%)
         valid_detections = [(lbl, conf) for lbl, conf in detections if conf * 100 > 50]
+
+        # Vision camera alert
+        if valid_detections:
+            det_labels = ", ".join(
+                f"{lbl.title()} ({int(conf*100)}%)"
+                for lbl, conf in valid_detections[:3]
+            )
+            _alert(
+                "vision",
+                f"Camera detected: {det_labels}",
+                "📷",
+                cool=3,
+            )
+            # If sensor also reads < 10 cm, escalate
+            if pkt.dist_fwd < 100:
+                _alert(
+                    "vision_close",
+                    f"CLOSE OBJECT — camera sees: {det_labels} at {pkt.dist_fwd} mm!",
+                    "🚨",
+                    cool=2,
+                )
 
         if valid_detections:
             det_text = "\n\n".join(
