@@ -419,14 +419,17 @@ if src is not None:
         vision_raw = read_latest_vision(Path(vision_log))
         detections = parse_vision_line(vision_raw) if vision_raw else []
 
-        if detections:
+        # Filter detections by confidence threshold (>50%)
+        valid_detections = [(lbl, conf) for lbl, conf in detections if conf * 100 > 50]
+
+        if valid_detections:
             det_text = "\n\n".join(
                 f"**{lbl.title()}** -- {int(conf * 100)}% confidence"
-                for lbl, conf in detections[:6]
+                for lbl, conf in valid_detections[:6]
             )
             detection_ph.markdown(det_text)
         else:
-            detection_ph.info("No objects currently detected. Waiting for vision module...")
+            detection_ph.info("NO OBJECT DETECTED")
 
         # Proximity
         prox_pct = max(0, min(100, int((1 - pkt.dist_fwd / 2000) * 100)))
