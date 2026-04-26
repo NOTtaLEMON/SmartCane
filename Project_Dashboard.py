@@ -47,6 +47,22 @@ def lux_label(val: int) -> str:
     if val < 800: return "Moderate"
     return "Bright"
 
+_ZONE_CSS = {
+    "CRITICAL": "zone-card-critical",
+    "WARNING":  "zone-card-warning",
+    "CAUTION":  "zone-card-caution",
+    "CLEAR":    "zone-card-clear",
+}
+
+def zone_card_html(label: str, value: str, zone: str) -> str:
+    css = _ZONE_CSS.get(zone, "zone-card-clear")
+    return (
+        f'<div class="{css}">'
+        f'<span style="opacity:.65;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em">{label}</span>'
+        f'<br><span style="font-size:1.1rem">{value}</span>'
+        f'&nbsp;&nbsp;<span style="opacity:.8">·&nbsp;{zone}</span></div>'
+    )
+
 def parse_vision_line(raw: str) -> list[tuple[str, float]]:
     results = []
     for token in raw.split(","):
@@ -166,6 +182,21 @@ class MockSource:
 # ---------------------------------------------------------------------------
 
 st.set_page_config(page_title="Smart Cane Dashboard", layout="wide", page_icon="🦯")
+
+st.markdown("""
+<style>
+[data-testid="stMetricValue"] { font-size: 1.5rem; font-weight: 700; }
+[data-testid="stMetricDelta"] { font-size: 0.78rem; }
+.zone-card-critical { background:#2d1b1b; border-left:4px solid #ff4b4b; border-radius:8px;
+    padding:10px 14px; color:#ff6b6b; font-weight:600; margin:4px 0; }
+.zone-card-warning  { background:#2d2210; border-left:4px solid #ffa421; border-radius:8px;
+    padding:10px 14px; color:#ffc166; font-weight:600; margin:4px 0; }
+.zone-card-caution  { background:#272d12; border-left:4px solid #c8e06a; border-radius:8px;
+    padding:10px 14px; color:#d4e157; font-weight:600; margin:4px 0; }
+.zone-card-clear    { background:#162d1e; border-left:4px solid #21c55d; border-radius:8px;
+    padding:10px 14px; color:#4ade80; font-weight:600; margin:4px 0; }
+</style>
+""", unsafe_allow_html=True)
 
 st.title("🦯 Smart Cane Clip-On")
 st.caption("Real-time obstacle detection & fall monitoring dashboard")
@@ -402,8 +433,37 @@ with ch3:
     chart_lux  = st.empty()
 
 st.divider()
-st.subheader("Alert Log")
-alert_log_ph = st.empty()
+_notif_count_ph = st.empty()
+with st.expander("Notifications", expanded=False):
+    alert_log_ph = st.empty()
+    _alert_dl_ph = st.empty()
+
+st.divider()
+st.subheader("Vision Log Export")
+_vlog_path = Path(vision_log)
+if _vlog_path.exists():
+    try:
+        _vlines = _vlog_path.read_text(errors="ignore").splitlines()
+        _vrows  = [
+            {"Label": _lbl.title(), "Confidence_%": int(_cf * 100)}
+            for _vl in _vlines if _vl.startswith("VISION|")
+            for _lbl, _cf in parse_vision_line(_vl[len("VISION|"):])
+        ]
+        if _vrows:
+            _vdf = pd.DataFrame(_vrows)
+            st.caption(f"{len(_vrows)} detections in log")
+            st.download_button(
+                f"Download vision log CSV",
+                _vdf.to_csv(index=False),
+                file_name="vision_log.csv",
+                mime="text/csv",
+            )
+        else:
+            st.caption("Vision log exists but has no detections yet.")
+    except Exception as _ve:
+        st.caption(f"Could not read vision log: {_ve}")
+else:
+    st.caption(f"No vision log found at `{vision_log}`. Start the vision module to generate one.")
 
 # ---------------------------------------------------------------------------
 #  Main loop
@@ -564,12 +624,17 @@ if src is not None:
         else:
             detection_ph.info("NO OBJECT DETECTED")
 
-        # Proximity
-        prox_pct = max(0, min(100, int((1 - pkt.dist_fwd / 2000) * 100)))
-        zone     = zone_label(pkt.dist_fwd)
+        # Proximity — zone-coloured cards (distinct from the sensor metric cards above)
+        prox_pct  = max(0, min(100, int((1 - pkt.dist_fwd / 2000) * 100)))
+        fwd_zone  = zone_label(pkt.dist_fwd)
+        drop_zone = zone_label(pkt.dist_drop)
         with proximity_ph.container():
-            st.metric(label=f"Nearest obstacle -- {zone}", value=mm_to_readable(pkt.dist_fwd))
-            st.progress(prox_pct)
+            st.markdown(
+                zone_card_html("Forward obstacle", mm_to_readable(pkt.dist_fwd), fwd_zone)
+                + zone_card_html("Drop / ledge", mm_to_readable(pkt.dist_drop), drop_zone),
+                unsafe_allow_html=True,
+            )
+            st.progress(prox_pct, text=f"Proximity index: {prox_pct}%")
 
         # Charts
         if not df.empty:
@@ -577,14 +642,27 @@ if src is not None:
             chart_drop.line_chart(df.set_index("t")[["drop"]], height=160)
             chart_lux.line_chart(df.set_index("t")[["lux"]],   height=160)
 
-        # Alert log
-        if st.session_state.alert_log:
-            alert_log_ph.dataframe(
-                pd.DataFrame(st.session_state.alert_log),
-                use_container_width=True,
-                hide_index=True,
+        # Notification count badge + alert log inside collapsible expander
+        _n = len(st.session_state.alert_log)
+        if _n:
+            _notif_count_ph.markdown(
+                f'<span style="color:#ffa421;font-weight:600">&#9679; {_n} alert{"s" if _n != 1 else ""} — expand Notifications below to review</span>',
+                unsafe_allow_html=True,
+            )
+            _adf = pd.DataFrame(st.session_state.alert_log)
+            alert_log_ph.dataframe(_adf, use_container_width=True, hide_index=True)
+            _alert_dl_ph.download_button(
+                "Download alert log (CSV)",
+                _adf.to_csv(index=False),
+                file_name="alert_log.csv",
+                mime="text/csv",
+                key=f"dl_alert_{_n}",
             )
         else:
+            _notif_count_ph.markdown(
+                '<span style="color:#4ade80;font-weight:500">&#10003; No alerts</span>',
+                unsafe_allow_html=True,
+            )
             alert_log_ph.caption("No alerts yet.")
 
     # Keep serial port alive between reruns -- only close mock source
