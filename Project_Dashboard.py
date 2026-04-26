@@ -582,16 +582,17 @@ if src is not None:
         # Filter detections by confidence threshold (>50%)
         valid_detections = [(lbl, conf) for lbl, conf in detections if conf * 100 > 50]
 
-        with detection_ph.container():
-            if valid_detections:
-                st.success("Object detected")
-                for lbl, conf in valid_detections[:6]:
-                    pct = int(conf * 100)
-                    emoji = object_emoji(lbl)
-                    st.markdown(f"{emoji} **{lbl.title()}**")
-                    st.progress(pct, text=f"{pct}% confidence")
-            else:
-                st.info("No object detected")
+        detection_ph.empty()
+        if valid_detections:
+            lines = ["**Object detected**\n"]
+            for lbl, conf in valid_detections[:6]:
+                pct = int(conf * 100)
+                emoji = object_emoji(lbl)
+                bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
+                lines.append(f"{emoji} **{lbl.title()}**  \n`{bar}` {pct}%\n")
+            detection_ph.success("\n".join(lines))
+        else:
+            detection_ph.info("No object detected")
 
         # Charts
         if not df.empty:
