@@ -49,6 +49,24 @@ def lux_label(val: int) -> str:
     if val < 800: return "Moderate"
     return "Bright"
 
+_OBJECT_EMOJI: dict[str, str] = {
+    "person": "🚶", "human": "🚶", "pedestrian": "🚶",
+    "car": "🚗", "truck": "🚚", "bus": "🚌", "motorcycle": "🏍️", "bicycle": "🚲",
+    "dog": "🐶", "cat": "🐱", "bird": "🐦",
+    "chair": "🪑", "bench": "🪨", "couch": "🛋️", "sofa": "🛋️",
+    "table": "🪵", "desk": "🪵",
+    "bottle": "🍾", "cup": "☕", "bowl": "🍜",
+    "stairs": "🚶", "step": "📍", "door": "🚪", "wall": "🧱",
+    "pole": "🧽", "tree": "🌳", "plant": "🌱",
+    "backpack": "🎒", "handbag": "👜", "suitcase": "🗃️",
+    "laptop": "💻", "phone": "📱", "tv": "📺",
+    "fire hydrant": "🚧", "stop sign": "🛑", "traffic light": "🚦",
+}
+
+def object_emoji(label: str) -> str:
+    key = label.lower().strip()
+    return _OBJECT_EMOJI.get(key, "📌")
+
 def parse_vision_line(raw: str) -> list[tuple[str, float]]:
     results = []
     for token in raw.split(","):
@@ -488,7 +506,7 @@ st.divider()
 
 det_col, prox_col = st.columns([3, 2])
 with det_col:
-    st.subheader("👁️ Object Detection")
+    st.subheader("Camera-Based Object Detection")
     detection_ph = st.empty()
 with prox_col:
     st.subheader("📏 Proximity")
@@ -568,14 +586,16 @@ if src is not None:
         # Filter detections by confidence threshold (>50%)
         valid_detections = [(lbl, conf) for lbl, conf in detections if conf * 100 > 50]
 
-        if valid_detections:
-            det_text = "\n\n".join(
-                f"**{lbl.title()}** -- {int(conf * 100)}% confidence"
-                for lbl, conf in valid_detections[:6]
-            )
-            detection_ph.markdown(det_text)
-        else:
-            detection_ph.info("NO OBJECT DETECTED")
+        with detection_ph.container():
+            if valid_detections:
+                st.success("Object detected")
+                for lbl, conf in valid_detections[:6]:
+                    pct = int(conf * 100)
+                    emoji = object_emoji(lbl)
+                    st.markdown(f"{emoji} **{lbl.title()}**")
+                    st.progress(pct, text=f"{pct}% confidence")
+            else:
+                st.info("No object detected")
 
         # Proximity
         prox_pct = max(0, min(100, int((1 - pkt.dist_fwd / 2000) * 100)))
