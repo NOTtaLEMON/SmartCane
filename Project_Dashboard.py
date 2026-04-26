@@ -123,17 +123,29 @@ class Packet:
 
 class SerialSource:
     def __init__(self, port: str, baud: int = 115200):
-        # timeout=1.5s -- firmware buzzer delay() can hold up packets ~400ms
-        self.ser = serial.Serial(port, baud, timeout=1.5)
+        self.ser = serial.Serial(port, baud, timeout=0.3)
         self.last_raw = ""
 
     def read(self) -> "Packet | None":
         try:
-            line = self.ser.readline().decode(errors="ignore")
-            stripped = line.strip()
-            if stripped:
-                pkt = Packet.parse(stripped)
-                self.last_raw = stripped if pkt else f"[PARSE FAIL] {stripped}"
+            # Drain all stale buffered packets, keep only the freshest
+            last_pkt = None
+            while self.ser.in_waiting:
+                line = self.ser.readline().decode(errors="ignore").strip()
+                if line:
+                    pkt = Packet.parse(line)
+                    if pkt:
+                        last_pkt = pkt
+                        self.last_raw = line
+                    else:
+                        self.last_raw = f"[PARSE FAIL] {line}"
+            if last_pkt:
+                return last_pkt
+            # Buffer empty -- wait for the next fresh packet
+            line = self.ser.readline().decode(errors="ignore").strip()
+            if line:
+                pkt = Packet.parse(line)
+                self.last_raw = line if pkt else f"[PARSE FAIL] {line}"
                 return pkt
             return None
         except Exception as exc:
