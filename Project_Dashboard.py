@@ -193,6 +193,8 @@ with st.sidebar:
     )
     st.session_state["mock_mode_val"] = mock_mode
 
+    start = st.toggle("Start stream", value=True, key="start_stream")
+
     port = None
     baud = 115200
     if not mock_mode:
@@ -257,7 +259,6 @@ with st.sidebar:
     st.subheader("Display")
     vision_log = st.text_input("Vision log path", value="vision.log")
     window     = st.slider("History window (samples)", 50, 500, 150)
-    start      = st.toggle("Start stream", value=True)
 
     st.divider()
     st.subheader("Alert Thresholds")
