@@ -135,6 +135,15 @@ class Packet:
                 pass
         return None
 
+@dataclass
+class Alert:
+    """Alert event for logging"""
+    timestamp: datetime
+    alert_type: str  # 'FALL', 'CRITICAL_DISTANCE', 'DARK_LIGHT', 'OBJECT_DETECTED'
+    severity: str    # 'CRITICAL', 'WARNING', 'INFO'
+    message: str
+    sensor_value: float = 0
+
 # ---------------------------------------------------------------------------
 #  Sources
 # ---------------------------------------------------------------------------
@@ -234,12 +243,13 @@ class MockSource:
 
 st.set_page_config(page_title="Smart Cane Dashboard", layout="wide", page_icon="🦯")
 
-# Custom CSS for better aesthetics
+# Enhanced Custom CSS for professional aesthetics
 st.markdown("""
     <style>
         /* Main container styling */
         .main {
             padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         }
         
         /* Title styling */
@@ -247,39 +257,75 @@ st.markdown("""
             color: #1f77b4;
             text-align: center;
             padding-bottom: 0.5rem;
+            font-size: 2.5em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
         }
         
         /* Subheader styling */
         h2 {
             color: #2e86de;
-            border-bottom: 2px solid #e0e0e0;
-            padding-bottom: 0.5rem;
+            border-bottom: 3px solid #ff6b6b;
+            padding-bottom: 0.7rem;
             margin-top: 1.5rem;
+        }
+        
+        h3 {
+            color: #0f4c75;
         }
         
         /* Metric cards styling */
         [data-testid="metric-container"] {
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            padding: 1rem;
-            border-left: 4px solid #2e86de;
+            background: white;
+            border-radius: 12px;
+            padding: 1.2rem;
+            border-left: 5px solid #2e86de;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
         }
         
-        /* Info boxes */
+        [data-testid="metric-container"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        /* Alert boxes */
         [data-testid="stAlert"] {
-            border-radius: 8px;
+            border-radius: 12px;
             margin: 0.5rem 0;
+            border: 2px solid;
         }
         
         /* Better spacing */
         hr {
-            margin: 1.5rem 0;
+            margin: 2rem 0;
+            border: 1px solid #ddd;
+        }
+        
+        /* Button styling */
+        .stButton > button {
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .stButton > button:hover {
+            transform: scale(1.02);
+        }
+        
+        /* Cards styling */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin: 0.5rem 0;
         }
     </style>
 """, unsafe_allow_html=True)
 
 st.title("🦯 Smart Cane Clip-On")
-st.caption("Real-time obstacle detection & fall monitoring dashboard")
+st.caption("💡 Real-time obstacle detection & fall monitoring dashboard with advanced alerting")
 st.divider()
 
 # ---------------------------------------------------------------------------
@@ -417,6 +463,10 @@ if "serial_raw" not in st.session_state:
     st.session_state.serial_raw = []
 if "mock_src" not in st.session_state:
     st.session_state.mock_src = None
+if "alerts" not in st.session_state:
+    st.session_state.alerts = []
+if "last_alert" not in st.session_state:
+    st.session_state.last_alert = None
 
 # ---------------------------------------------------------------------------
 #  Open source (cached so the port stays open across reruns)
@@ -461,35 +511,106 @@ if start:
 # ---------------------------------------------------------------------------
 
 # Export/Download section
-st.markdown("### 📊 Data Management")
-exp_col1, exp_col2 = st.columns([2, 1])
-with exp_col1:
-    if st.session_state.hist:
-        # Create DataFrame from history
-        hist_data = pd.DataFrame(list(st.session_state.hist))
-        if not hist_data.empty:
-            hist_data["timestamp"] = pd.to_datetime(hist_data["t"], unit="s")
-            hist_data = hist_data[["timestamp", "fwd", "drop", "fall", "lux"]]
-            hist_data.columns = ["Timestamp", "Forward Distance (mm)", "Drop Distance (mm)", "Fall Detected", "Light Level"]
+st.markdown("### 📊 Data & Alerts Management")
+export_tabs = st.tabs(["📥 Sensor Data", "🚨 Alert Logs", "📈 Statistics"])
+
+with export_tabs[0]:
+    exp_col1, exp_col2, exp_col3 = st.columns([2, 1, 1])
+    with exp_col1:
+        if st.session_state.hist:
+            # Create DataFrame from history
+            hist_data = pd.DataFrame(list(st.session_state.hist))
+            if not hist_data.empty:
+                hist_data["timestamp"] = pd.to_datetime(hist_data["t"], unit="s")
+                hist_data = hist_data[["timestamp", "fwd", "drop", "fall", "lux"]]
+                hist_data.columns = ["Timestamp", "Forward Distance (mm)", "Drop Distance (mm)", "Fall Detected", "Light Level"]
+                
+                # Create CSV
+                csv_buffer = io.StringIO()
+                hist_data.to_csv(csv_buffer, index=False)
+                csv_data = csv_buffer.getvalue()
+                
+                st.download_button(
+                    label="📥 Download Sensor Data as CSV",
+                    data=csv_data,
+                    file_name=f"smartcane_sensor_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+        else:
+            st.caption("No sensor data collected yet. Start the stream to record data.")
+    
+    with exp_col2:
+        if st.session_state.hist:
+            st.metric("Readings", len(st.session_state.hist))
+    
+    with exp_col3:
+        if st.session_state.hist:
+            hours = len(st.session_state.hist) * 0.1 / 3600
+            st.metric("Duration", f"{hours:.2f}h")
+
+with export_tabs[1]:
+    alert_col1, alert_col2 = st.columns([2, 1])
+    with alert_col1:
+        if st.session_state.alerts:
+            # Create alert DataFrame
+            alert_data = pd.DataFrame([
+                {
+                    "Timestamp": a.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                    "Type": a.alert_type,
+                    "Severity": a.severity,
+                    "Message": a.message,
+                    "Value": f"{a.sensor_value:.1f}"
+                }
+                for a in st.session_state.alerts
+            ])
             
-            # Create CSV
-            csv_buffer = io.StringIO()
-            hist_data.to_csv(csv_buffer, index=False)
-            csv_data = csv_buffer.getvalue()
-            
+            # Download alerts CSV
+            csv_alert = alert_data.to_csv(index=False)
             st.download_button(
-                label="📥 Download Data as CSV",
-                data=csv_data,
-                file_name=f"smartcane_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                label="🚨 Download Alert Log as CSV",
+                data=csv_alert,
+                file_name=f"smartcane_alerts_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv",
                 use_container_width=True
             )
-    else:
-        st.caption("No data collected yet. Start the stream to record sensor data.")
+            
+            # Display recent alerts
+            st.caption("Recent Alerts (latest first):")
+            for alert in reversed(st.session_state.alerts[-10:]):
+                severity_color = {"CRITICAL": "🔴", "WARNING": "🟡", "INFO": "🔵"}
+                col = severity_color.get(alert.severity, "⚪")
+                st.text(f"{col} {alert.timestamp.strftime('%H:%M:%S')} | {alert.alert_type} | {alert.message}")
+        else:
+            st.caption("No alerts recorded yet.")
+    
+    with alert_col2:
+        if st.session_state.alerts:
+            critical_count = sum(1 for a in st.session_state.alerts if a.severity == "CRITICAL")
+            st.metric("Critical", critical_count)
+            warning_count = sum(1 for a in st.session_state.alerts if a.severity == "WARNING")
+            st.metric("Warnings", warning_count)
+        
+        if st.button("🗑️ Clear Alerts", key="clear_alerts", use_container_width=True):
+            st.session_state.alerts = []
+            st.success("Alerts cleared!")
+            st.rerun()
 
-with exp_col2:
+with export_tabs[2]:
     if st.session_state.hist:
-        st.metric("Records", len(st.session_state.hist))
+        hist_df = pd.DataFrame(list(st.session_state.hist))
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Avg Distance", f"{hist_df['fwd'].mean():.0f} mm")
+        with col2:
+            st.metric("Min Distance", f"{hist_df['fwd'].min():.0f} mm")
+        with col3:
+            st.metric("Avg Light", f"{hist_df['lux'].mean():.0f} lux")
+        with col4:
+            falls = hist_df['fall'].sum()
+            st.metric("Fall Events", f"{int(falls)}")
+    else:
+        st.info("Collect sensor data to see statistics.")
 
 st.divider()
 
@@ -548,11 +669,51 @@ if src is not None:
         })
         df = pd.DataFrame(list(st.session_state.hist)[-window:])
 
-        # Fall banner
+        # Fall banner with alert
         if pkt.fall_flag:
-            fall_ph.error("FALL DETECTED -- ALERT TRIGGERED")
+            fall_ph.error("🚨 FALL DETECTED -- ALERT TRIGGERED")
+            # Log fall alert
+            if not st.session_state.last_alert or (datetime.now() - st.session_state.last_alert).total_seconds() > 5:
+                alert = Alert(
+                    timestamp=datetime.now(),
+                    alert_type="FALL",
+                    severity="CRITICAL",
+                    message="Fall detected by IMU sensor",
+                    sensor_value=1.0
+                )
+                st.session_state.alerts.append(alert)
+                st.session_state.last_alert = datetime.now()
+                st.toast("🚨 FALL ALERT!", icon="⚠️")
         else:
-            fall_ph.success("No fall detected -- IMU stable")
+            fall_ph.success("✓ No fall detected -- IMU stable")
+
+        # Critical distance alert (< 100mm / 10cm)
+        if pkt.dist_fwd < 100:
+            if not st.session_state.last_alert or (datetime.now() - st.session_state.last_alert).total_seconds() > 5:
+                alert = Alert(
+                    timestamp=datetime.now(),
+                    alert_type="CRITICAL_DISTANCE",
+                    severity="CRITICAL",
+                    message=f"Critical obstacle distance: {pkt.dist_fwd}mm",
+                    sensor_value=float(pkt.dist_fwd)
+                )
+                st.session_state.alerts.append(alert)
+                st.session_state.last_alert = datetime.now()
+                st.toast(f"🚪 CRITICAL: {pkt.dist_fwd}mm away!", icon="⚠️")
+        
+        # Very dark light condition alert
+        if pkt.light_val < 200:
+            if not st.session_state.last_alert or (datetime.now() - st.session_state.last_alert).total_seconds() > 10:
+                alert = Alert(
+                    timestamp=datetime.now(),
+                    alert_type="DARK_LIGHT",
+                    severity="WARNING",
+                    message=f"Very dark environment: {pkt.light_val} lux",
+                    sensor_value=float(pkt.light_val)
+                )
+                st.session_state.alerts.append(alert)
+                st.session_state.last_alert = datetime.now()
+                st.toast(f"🌙 Dark: {pkt.light_val} lux", icon="ℹ️")
 
         # Sensor cards
         card_fwd.metric(
@@ -567,7 +728,7 @@ if src is not None:
         )
         card_fall.metric(
             label="Fall Status",
-            value="FALL!" if pkt.fall_flag else "Stable",
+            value="🚨 FALL!" if pkt.fall_flag else "✓ Stable",
         )
         card_lux.metric(
             label="Ambient Light",
