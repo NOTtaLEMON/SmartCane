@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ ============================================================================
+  SMART CANE CLIP-ON  |  MODULE B: AndroidManifest.xml
+ ============================================================================
+  Drop this file into:
+    app/src/main/AndroidManifest.xml
+  (replace the auto-generated one Android Studio created)
+ ============================================================================
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.smartcane.gateway">
+
+    <!-- =====================================================================
+         PERMISSIONS
+    ====================================================================== -->
+
+    <!-- BLE (legacy, required for API < 31) -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30"/>
+
+    <!-- BLE (API 31+) -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- GPS (needed to get location for SOS SMS) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- SMS -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+
+    <!-- Foreground service -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
+    <!-- Notification (API 33+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Keep CPU alive while BLE is listening -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Camera (on-device YOLO inference — no WiFi required) -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Internet (Google Maps navigation, optional telemetry) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Vibration for haptic alerts -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Required hardware features -->
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
+    <uses-feature android:name="android.hardware.camera"       android:required="true" />
+
+    <!-- =====================================================================
+         APPLICATION
+    ====================================================================== -->
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="Smart Cane"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AppCompat.Light.DarkActionBar"
+        xmlns:tools="http://schemas.android.com/tools">
+
+        <!-- ── Phone Dashboard (NEW primary launcher) ── -->
+        <activity
+            android:name=".PhoneDashboardActivity"
+            android:exported="true"
+            android:label="Smart Cane"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- ── On-device vision (CameraX + TFLite YOLOv8) ── -->
+        <activity
+            android:name=".CaneVisionActivity"
+            android:exported="false"
+            android:label="Vision"
+            android:screenOrientation="portrait" />
+
+        <!-- ── Voice / text navigation → Google Maps ── -->
+        <activity
+            android:name=".NavigationActivity"
+            android:exported="false"
+            android:label="Navigate"
+            android:screenOrientation="portrait" />
+
+        <!-- ── SOS contacts manager ── -->
+        <activity
+            android:name=".SosContactsActivity"
+            android:exported="false"
+            android:label="SOS Contacts"
+            android:screenOrientation="portrait" />
+
+        <!-- ── Legacy permission / service launcher (kept for debug) ── -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:label="Smart Cane (Debug)" />
+
+        <!-- BLE + SOS background service -->
+        <service
+            android:name=".CaneSosService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
+    </application>
+
+</manifest>
