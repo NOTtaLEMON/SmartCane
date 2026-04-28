@@ -9,7 +9,7 @@
  ============================================================================
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.smartcane.gateway">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- =====================================================================
          PERMISSIONS
@@ -66,8 +66,7 @@
         android:label="Smart Cane"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light.DarkActionBar"
-        xmlns:tools="http://schemas.android.com/tools">
+        android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
 
         <!-- ── Phone Dashboard (NEW primary launcher) ── -->
         <activity

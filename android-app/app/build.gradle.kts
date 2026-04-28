@@ -41,9 +41,9 @@ dependencies {
     implementation(libs.material)
 
     // ── On-device YOLOv8 TFLite inference ──────────────────────────────────
-    implementation("org.tensorflow:tensorflow-lite:2.14.0")
+    implementation("org.tensorflow:tensorflow-lite:2.16.1")
     implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
-    implementation("org.tensorflow:tensorflow-lite-gpu:2.14.0")
+    implementation("org.tensorflow:tensorflow-lite-gpu:2.16.1")
 
     // ── CameraX (live camera feed for on-device vision) ────────────────────
     implementation("androidx.camera:camera-camera2:1.3.4")
