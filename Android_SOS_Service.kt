@@ -44,6 +44,7 @@ import android.telephony.SmsManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import java.util.UUID
 
 class CaneSosService : Service() {
@@ -64,6 +65,10 @@ class CaneSosService : Service() {
 
         // Rate-limit: don't spam SMS
         private const val SMS_COOLDOWN_MS = 60_000L
+
+        // LocalBroadcast action + extras — received by PhoneDashboardActivity
+        const val ACTION_SENSOR_DATA = "com.smartcane.gateway.SENSOR_DATA"
+        const val EXTRA_PACKET       = "packet"
     }
 
     private var gatt: BluetoothGatt? = null
@@ -150,8 +155,10 @@ class CaneSosService : Service() {
 
         Log.d(TAG, "packet=$raw")
 
-        // VIBECODER: broadcast the packet to your Activity / LiveData here
-        // e.g. LocalBroadcastManager.getInstance(this).sendBroadcast(...)
+        // Broadcast sensor data to PhoneDashboardActivity
+        LocalBroadcastManager.getInstance(this).sendBroadcast(
+            Intent(ACTION_SENSOR_DATA).putExtra(EXTRA_PACKET, raw)
+        )
 
         if (fallFlag == 1) triggerSos()
     }
@@ -172,8 +179,12 @@ class CaneSosService : Service() {
             "location unavailable"
 
         val body = "SOS: Smart-Cane user may have fallen. $mapsUrl"
-        sendSms(SOS_CONTACT, body)
-        Log.w(TAG, "SOS SMS sent -> $body")
+
+        // Send to all contacts managed in SosContactsActivity
+        val contacts = SosContactsActivity.loadContacts(this)
+        val targets  = contacts.ifEmpty { listOf(SOS_CONTACT) }   // fallback to hardcoded
+        targets.forEach { sendSms(it, body) }
+        Log.w(TAG, "SOS SMS sent to ${targets.size} contact(s) -> $body")
     }
 
     @SuppressLint("MissingPermission")
