@@ -28,9 +28,10 @@ import android.graphics.Bitmap
 import android.graphics.RectF
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.gpu.GpuDelegate
-import org.tensorflow.lite.support.common.FileUtil
+import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.channels.FileChannel
 import kotlin.math.max
 import kotlin.math.min
 
@@ -43,13 +44,18 @@ data class DetectionResult(
 class TfliteObjectDetector(context: Context) : AutoCloseable {
 
     companion object {
-        private const val MODEL_FILE     = "yolov8n_320_float16.tflite"
+        private val MODEL_FILES = arrayOf(
+            "yolov8n_seg_320_float16.tflite",
+            "yolov8s_seg_320_float16.tflite",
+            "yolov8m_seg_320_float16.tflite",
+            "yolov8n_320_float16.tflite",
+            "yolov8s_320_float16.tflite",
+            "yolov8m_320_float16.tflite"
+        )
         private const val INPUT_SIZE     = 320
         private const val CONF_THRESHOLD = 0.35f
         private const val IOU_THRESHOLD  = 0.45f
-        private const val NUM_ANCHORS    = 2100   // for 320×320 input
         private const val NUM_COORDS     = 4
-        private const val NUM_CLASSES    = 80
 
         // COCO class indices relevant to pedestrian / outdoor navigation
         private val RELEVANT_CLASSES = setOf(
@@ -84,18 +90,47 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
             "remote","keyboard","cell phone","microwave","oven","toaster","sink","refrigerator",
             "book","clock","vase","scissors","teddy bear","hair drier","toothbrush"
         )
+
+        private val CUSTOM_SEGMENTATION_LABELS = arrayOf(
+            "Water Puddle",
+            "Slippery Floor",
+            "Pothole"
+        )
+
+        private fun findModelFile(context: Context): String {
+            for (filename in MODEL_FILES) {
+                try {
+                    context.assets.openFd(filename).close()
+                    return filename
+                } catch (_: Exception) {
+                    // try next candidate
+                }
+            }
+            throw IllegalStateException(
+                "No YOLO TFLite model found in assets. " +
+                "Place one of: ${MODEL_FILES.joinToString()}."
+            )
+        }
     }
 
     private val gpuDelegate = runCatching { GpuDelegate() }.getOrNull()
     private val interpreter: Interpreter
 
     init {
-        val model = FileUtil.loadMappedFile(context, MODEL_FILE)
+        val modelFile = findModelFile(context)
+        val assetFd = context.assets.openFd(modelFile)
+        val inputStream = FileInputStream(assetFd.fileDescriptor)
+        val fileChannel = inputStream.channel
+        val startOffset = assetFd.startOffset
+        val declaredLength = assetFd.declaredLength
+        val model = fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
         val opts  = Interpreter.Options().apply {
             if (gpuDelegate != null) addDelegate(gpuDelegate)
             else numThreads = 4
         }
         interpreter = Interpreter(model, opts)
+        inputStream.close()
+        assetFd.close()
     }
 
     /**
@@ -105,15 +140,27 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
     fun detect(bitmap: Bitmap): List<DetectionResult> {
         val resized    = Bitmap.createScaledBitmap(bitmap, INPUT_SIZE, INPUT_SIZE, true)
         val inputBuf   = bitmapToByteBuffer(resized)
-        // output shape: [1, 84, 2100]  →  [1][84][2100]
-        val outputBuf  = Array(1) { Array(NUM_COORDS + NUM_CLASSES) { FloatArray(NUM_ANCHORS) } }
 
-        interpreter.run(inputBuf, outputBuf)
+        // Support YOLOv8 object and segmentation TFLite exports.
+        val outShape = interpreter.getOutputTensor(0).shape()
+        if (outShape.size != 3) {
+            throw IllegalStateException("Unexpected output tensor shape: ${outShape.contentToString()}")
+        }
 
-        val raw = outputBuf[0]   // [84][2100]
+        val numChannels = outShape[1]
+        val numAnchors = outShape[2]
+        val numClasses = numChannels - NUM_COORDS
+        val outputBuf = Array(1) { Array(numChannels) { FloatArray(numAnchors) } }
+        val outputs: MutableMap<Int, Any> = HashMap()
+        outputs[0] = outputBuf
+
+        interpreter.runForMultipleInputsOutputs(arrayOf(inputBuf), outputs)
+
+        val raw = outputBuf[0]
         val candidates = mutableListOf<DetectionResult>()
+        val isCustomSegModel = numClasses != COCO_LABELS.size
 
-        for (a in 0 until NUM_ANCHORS) {
+        for (a in 0 until numAnchors) {
             val cx = raw[0][a]
             val cy = raw[1][a]
             val w  = raw[2][a]
@@ -121,29 +168,42 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
 
             var bestScore = CONF_THRESHOLD
             var bestClass = -1
-            for (c in 0 until NUM_CLASSES) {
+            for (c in 0 until numClasses) {
                 val score = raw[NUM_COORDS + c][a]
-                if (score > bestScore && c in RELEVANT_CLASSES) {
-                    bestScore = score
-                    bestClass = c
+                if (score > bestScore) {
+                    if (isCustomSegModel || c in RELEVANT_CLASSES) {
+                        bestScore = score
+                        bestClass = c
+                    }
                 }
             }
             if (bestClass == -1) continue
 
-            // cx, cy, w, h are in pixels relative to INPUT_SIZE — normalize to [0,1]
+            val label = labelForClassIndex(bestClass, numClasses)
+            if (label.isEmpty()) continue
+
             val x1 = ((cx - w / 2f) / INPUT_SIZE).coerceIn(0f, 1f)
             val y1 = ((cy - h / 2f) / INPUT_SIZE).coerceIn(0f, 1f)
             val x2 = ((cx + w / 2f) / INPUT_SIZE).coerceIn(0f, 1f)
             val y2 = ((cy + h / 2f) / INPUT_SIZE).coerceIn(0f, 1f)
 
             candidates.add(DetectionResult(
-                label       = COCO_LABELS.getOrElse(bestClass) { "object" },
+                label       = label,
                 confidence  = bestScore,
                 boundingBox = RectF(x1, y1, x2, y2)
             ))
         }
 
         return nonMaxSuppression(candidates).sortedByDescending { it.confidence }
+    }
+
+    private fun labelForClassIndex(index: Int, numClasses: Int): String {
+        return when {
+            index in COCO_LABELS.indices -> COCO_LABELS[index]
+            numClasses <= CUSTOM_SEGMENTATION_LABELS.size && index in CUSTOM_SEGMENTATION_LABELS.indices ->
+                CUSTOM_SEGMENTATION_LABELS[index]
+            else -> "Class $index"
+        }
     }
 
     // ------------------------------------------------------------------

@@ -42,7 +42,6 @@ dependencies {
 
     // ── On-device YOLOv8 TFLite inference ──────────────────────────────────
     implementation("org.tensorflow:tensorflow-lite:2.16.1")
-    implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
     implementation("org.tensorflow:tensorflow-lite-gpu:2.16.1")
 
     // ── CameraX (live camera feed for on-device vision) ────────────────────
