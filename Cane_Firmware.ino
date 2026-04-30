@@ -1,25 +1,24 @@
-/*
+﻿/*
  * ============================================================================
  *  SMART CANE CLIP-ON  |  ESP32 FIRMWARE
  * ============================================================================
- *  Hardware (actual):
- *    - 1x VL53L0X ToF (forward distance)
- *    - 16x2 LCD via I2C (LiquidCrystal_I2C @ 0x27)
- *    - LED         -> GPIO 2
- *    - Buzzer      -> GPIO 4
- *    - LDR (analog)-> GPIO 34
- *    - I2C SDA     -> GPIO 21
- *    - I2C SCL     -> GPIO 22
+ *  Hardware:
+ *    - TF-Luna LiDAR (UART2 RX=16, TX=17) -> front obstacle distance (cm)
+ *    - VL53L0X ToF   (I2C SDA=21, SCL=22) -> downward-facing drop detection (mm)
+ *    - MPU6050       (I2C 0x68)            -> fall detection
+ *    - 16x2 LCD      (I2C 0x27)
+ *    - LED           -> GPIO 2
+ *    - Buzzer        -> GPIO 4
+ *    - LDR (analog)  -> GPIO 34
  *
- *  DATA PROTOCOL (NON-NEGOTIABLE -- matches dashboard parser):
- *      "dist_fwd,dist_drop,fall_flag,light_val"
- *      e.g. "045,000,0,0550"
- *      dist_drop = 000  (no drop sensor on this build)
- *      fall_flag = 0    (no IMU on this build)
+ *  SERIAL OUTPUT FORMAT (matches dashboard parser, 10Hz):
+ *      "L:<cm>,T:<mm>,LDR:<val>,F:<0|1>"
+ *      L = LiDAR front distance (cm)
+ *      T = ToF downward distance (mm)
  *
- *  LIBRARIES NEEDED (Arduino Library Manager):
+ *  LIBRARIES NEEDED:
  *    - Adafruit VL53L0X
- *    - LiquidCrystal I2C  (by Frank de Brabander)
+ *    - LiquidCrystal I2C (by Frank de Brabander)
  * ============================================================================
  */
 
@@ -27,104 +26,177 @@
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_VL53L0X.h>
 
-// ---------- PIN MAP ----------
-#define LED_PIN     2
-#define BUZZER_PIN  4
-#define LDR_PIN     34
+// ===== TF-LUNA =====
+HardwareSerial TFSerial(2);
 
-// ---------- TUNING ----------
-#define LDR_DARK_THRESHOLD  700   // below this = dark -> LED on
-#define LOOP_MS             100   // 10 Hz packet rate
-
-// ---------- OBJECTS ----------
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+// ===== TOF =====
 Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 
-unsigned long lastTick = 0;
+// ===== LCD =====
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-// ===========================================================================
-//  SETUP
-// ===========================================================================
+// ===== PINS =====
+#define BUZZER_PIN 4
+#define LDR_PIN 34
+#define LED_PIN 2
+
+// ===== VARIABLES =====
+int lidarDist = -1;   // cm  (front obstacle via TF-Luna)
+int tofDist = -1;     // mm  (downward drop via VL53L0X)
+
+unsigned long lastPrint = 0;
+unsigned long lastBeep = 0;
+bool buzzerState = false;
+
+int ldrThreshold = 700;
+long fallThreshold = 20000;
+
+// ===== MPU =====
+int16_t ax, ay, az;
+long totalAccel = 0;
+
 void setup() {
   Serial.begin(115200);
-  delay(1000);
+  delay(500);
 
+  Serial.println("SYSTEM STARTED");
+
+  // TF-Luna (UART2)
+  TFSerial.begin(115200, SERIAL_8N1, 16, 17);
+
+  // TOF (I2C)
   Wire.begin(21, 22);
-
-  pinMode(LED_PIN,    OUTPUT);
-  pinMode(BUZZER_PIN, OUTPUT);
-
-  lcd.init();
-  lcd.backlight();
-  lcd.setCursor(0, 0);
-  lcd.print("Starting...");
-
   if (!lox.begin()) {
-    lcd.clear();
-    lcd.print("TOF FAIL");
-    Serial.println("ERR: VL53L0X init failed");
+    Serial.println("TOF FAIL");
     while (1);
   }
 
-  lcd.clear();
-  lcd.print("READY");
-  delay(1000);
+  // MPU6050 wake
+  Wire.beginTransmission(0x68);
+  Wire.write(0x6B);
+  Wire.write(0);
+  Wire.endTransmission();
+
+  // LCD
+  lcd.init();
+  lcd.backlight();
+
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
 }
 
-// ===========================================================================
-//  MAIN LOOP
-// ===========================================================================
 void loop() {
-  if (millis() - lastTick < LOOP_MS) return;
-  lastTick = millis();
 
-  // ---- ToF ----
+  // ===== TF-LUNA (FAST READ) =====
+  while (TFSerial.available() >= 9) {
+    if (TFSerial.read() == 0x59 && TFSerial.read() == 0x59) {
+      lidarDist = TFSerial.read() + TFSerial.read() * 256;
+      for (int i = 0; i < 5; i++) TFSerial.read();
+    }
+  }
+
+  // ===== TOF (downward-facing drop detection) =====
   VL53L0X_RangingMeasurementData_t measure;
   lox.rangingTest(&measure, false);
-  int distFwd = (measure.RangeStatus != 4) ? (int)measure.RangeMilliMeter : 0;
 
-  // ---- LDR ----
+  if (measure.RangeStatus != 4) {
+    tofDist = measure.RangeMilliMeter;
+  }
+
+  // ===== LDR =====
   int ldrValue = analogRead(LDR_PIN);
-  bool isDark  = (ldrValue < LDR_DARK_THRESHOLD);
-
-  // ---- LED ----
+  bool isDark = (ldrValue < ldrThreshold);
   digitalWrite(LED_PIN, isDark ? HIGH : LOW);
 
-  // ---- Buzzer ----
-  if (distFwd > 0 && distFwd < 100) {
-    // Very close -- fast beep
-    digitalWrite(BUZZER_PIN, HIGH);
-    delay(100);
-    digitalWrite(BUZZER_PIN, LOW);
-  } else if (distFwd > 0 && distFwd < 300) {
-    // Approaching -- slow beep
-    digitalWrite(BUZZER_PIN, HIGH);
-    delay(300);
-    digitalWrite(BUZZER_PIN, LOW);
-  } else {
-    digitalWrite(BUZZER_PIN, LOW);
+  // ===== MPU =====
+  Wire.beginTransmission(0x68);
+  Wire.write(0x3B);
+  Wire.endTransmission(false);
+  Wire.requestFrom(0x68, 6, true);
+
+  ax = Wire.read() << 8 | Wire.read();
+  ay = Wire.read() << 8 | Wire.read();
+  az = Wire.read() << 8 | Wire.read();
+
+  totalAccel = abs(ax) + abs(ay) + abs(az);
+  bool fallDetected = (totalAccel > fallThreshold);
+
+  // ===== BUZZER =====
+  unsigned long now = millis();
+  bool buzzerOutput = false;
+
+  // Use LiDAR (front) for buzzer distance; ToF handles drop separately
+  int closestDist = 10000;
+
+  if (lidarDist > 0) {
+    int lidar_mm = lidarDist * 10;
+    if (lidar_mm < closestDist) closestDist = lidar_mm;
   }
 
-  // ---- LCD ----
-  lcd.clear();
+  // FALL -> highest priority
+  if (fallDetected) {
+    buzzerOutput = true;
+  }
+  else {
+    if (closestDist < 150) {
+      if (now - lastBeep > 150) {
+        buzzerState = !buzzerState;
+        lastBeep = now;
+      }
+      buzzerOutput = buzzerState;
+    }
+    else if (closestDist < 400) {
+      if (now - lastBeep > 400) {
+        buzzerState = !buzzerState;
+        lastBeep = now;
+      }
+      buzzerOutput = buzzerState;
+    }
+    else if (closestDist < 800) {
+      if (now - lastBeep > 800) {
+        buzzerState = !buzzerState;
+        lastBeep = now;
+      }
+      buzzerOutput = buzzerState;
+    }
+    else {
+      buzzerOutput = false;
+    }
+  }
+
+  digitalWrite(BUZZER_PIN, buzzerOutput);
+
+  // ===== LCD =====
   lcd.setCursor(0, 0);
-  if (measure.RangeStatus != 4) {
-    lcd.print("Dist:");
-    lcd.print(distFwd);
-    lcd.print("mm");
-  } else {
-    lcd.print("Out of range");
-  }
-  lcd.setCursor(0, 1);
   lcd.print("L:");
-  lcd.print(ldrValue);
-  lcd.print(" ");
-  lcd.print(isDark ? "DARK" : "BRIGHT");
+  lcd.print(lidarDist);
+  lcd.print(" T:");
+  lcd.print(tofDist);
+  lcd.print("   ");
 
-  // ---- Serial packet (dashboard format) ----
-  // Format: dist_fwd,dist_drop,fall_flag,light_val
-  // dist_drop=000 (no drop sensor), fall_flag=0 (no IMU)
-  char buf[32];
-  snprintf(buf, sizeof(buf), "%03d,000,0,%04d", distFwd, ldrValue);
-  Serial.println(buf);
+  lcd.setCursor(0, 1);
+  if (fallDetected) lcd.print("FALL ");
+  else lcd.print("OK   ");
+
+  lcd.print(isDark ? "DARK " : "BRIGHT");
+
+  // ===== SERIAL OUTPUT (STREAMLIT FORMAT) =====
+  if (now - lastPrint > 100) {
+
+    Serial.print("L:");
+    Serial.print(lidarDist);     // cm (front, TF-Luna)
+
+    Serial.print(",T:");
+    Serial.print(tofDist);       // mm (downward, VL53L0X)
+
+    Serial.print(",LDR:");
+    Serial.print(ldrValue);
+
+    Serial.print(",F:");
+    Serial.print(fallDetected ? 1 : 0);
+
+    Serial.println();
+
+    lastPrint = now;
+  }
 }
