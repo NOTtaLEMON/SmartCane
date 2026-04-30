@@ -113,24 +113,24 @@ class Packet:
         raw = line.strip()
         if not raw:
             return None
+        # New format: L:<cm>,T:<mm>,LDR:<val>,F:<0|1>
+        l_match   = re.search(r"L:(-?[0-9]+)", raw)
+        t_match   = re.search(r"T:(-?[0-9]+)", raw)
+        ldr_match = re.search(r"LDR:([0-9]+)", raw)
+        f_match   = re.search(r"F:([01])", raw)
+        if l_match and t_match and ldr_match and f_match:
+            lidar_cm = int(l_match.group(1))
+            tof_mm   = int(t_match.group(1))
+            ldr      = int(ldr_match.group(1))
+            fall     = int(f_match.group(1))
+            # dist_fwd = LiDAR (front, cm -> store as cm)
+            # dist_drop = ToF (downward, mm)
+            return cls(lidar_cm, tof_mm, fall, ldr)
+        # Legacy fallback: plain "045,000,0,0550"
         parts = [p.strip() for p in raw.split(",") if p.strip()]
         if len(parts) == 4:
             try:
                 return cls(int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]))
-            except ValueError:
-                pass
-        dist_match = re.search(r"Dist[:\s]*([0-9]+)", raw, re.IGNORECASE)
-        ldr_match  = re.search(r"LDR[:\s]*([0-9]+)", raw, re.IGNORECASE)
-        fall_match = re.search(r"\bFALL\b", raw, re.IGNORECASE)
-        if dist_match and ldr_match:
-            dist = int(dist_match.group(1))
-            ldr  = int(ldr_match.group(1))
-            fall = 1 if fall_match else 0
-            return cls(dist, dist, fall, ldr)
-        nums = re.findall(r"([0-9]+)", raw)
-        if len(nums) >= 2:
-            try:
-                return cls(int(nums[0]), int(nums[0]), 0, int(nums[1]))
             except ValueError:
                 pass
         return None
@@ -470,7 +470,7 @@ with exp_col1:
         if not hist_data.empty:
             hist_data["timestamp"] = pd.to_datetime(hist_data["t"], unit="s")
             hist_data = hist_data[["timestamp", "fwd", "drop", "fall", "lux"]]
-            hist_data.columns = ["Timestamp", "Forward Distance (mm)", "Drop Distance (mm)", "Fall Detected", "Light Level"]
+            hist_data.columns = ["Timestamp", "LiDAR Front (cm)", "ToF Drop (mm)", "Fall Detected", "Light Level"]
             
             # Create CSV
             csv_buffer = io.StringIO()
@@ -512,10 +512,10 @@ st.divider()
 st.subheader("📈 Sensor History")
 ch1, ch2, ch3 = st.columns(3)
 with ch1:
-    st.caption("Forward Distance (mm)")
+    st.caption("LiDAR Front (cm)")
     chart_fwd  = st.empty()
 with ch2:
-    st.caption("Drop Distance (mm)")
+    st.caption("ToF Drop (mm)")
     chart_drop = st.empty()
 with ch3:
     st.caption("Ambient Light")
