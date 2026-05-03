@@ -10,6 +10,7 @@ from __future__ import annotations
 import io
 import random
 import re
+import socket
 import subprocess
 import sys
 import time
@@ -27,6 +28,12 @@ try:
     HAS_SERIAL = True
 except Exception:
     HAS_SERIAL = False
+
+try:
+    import websocket
+    HAS_WEBSOCKET = True
+except Exception:
+    HAS_WEBSOCKET = False
 
 # ---------------------------------------------------------------------------
 #  Helpers
@@ -186,6 +193,65 @@ class SerialSource:
             pass
 
 
+class WiFiSource:
+    """WebSocket client for ESP32 WiFi connectivity"""
+    def __init__(self, esp32_ip: str, port: int = 81, timeout: float = 2.0):
+        self.ws_url = f"ws://{esp32_ip}:{port}"
+        self.ws = None
+        self.last_pkt = None
+        self.last_raw = ""
+        self.connected = False
+        self.timeout = timeout
+        self._connect()
+
+    def _connect(self):
+        """Establish WebSocket connection to ESP32"""
+        try:
+            import websocket
+            self.ws = websocket.create_connection(self.ws_url, timeout=self.timeout)
+            self.connected = True
+        except Exception as e:
+            self.last_raw = f"[WS ERROR] {e}"
+            self.connected = False
+
+    def read(self) -> "Packet | None":
+        """Read sensor packet from WebSocket"""
+        if not self.connected:
+            self._connect()  # Try reconnect
+            if not self.connected:
+                return None
+        
+        try:
+            if self.ws:
+                self.ws.settimeout(0.1)
+                try:
+                    data = self.ws.recv()
+                    if data:
+                        self.last_raw = data
+                        pkt = Packet.parse(data)
+                        if pkt:
+                            self.last_pkt = pkt
+                            return pkt
+                except socket.timeout:
+                    pass
+                except Exception:
+                    self.connected = False
+        except Exception as e:
+            self.last_raw = f"[WS ERROR] {e}"
+            self.connected = False
+        
+        return None
+
+    def close(self):
+        """Close WebSocket connection"""
+        if self.ws:
+            try:
+                self.ws.close()
+            except Exception:
+                pass
+        self.connected = False
+
+
 class MockSource:
     def __init__(self):
         self._t = 0
@@ -335,28 +401,41 @@ st.divider()
 with st.sidebar:
     st.header("Configuration")
 
+    # Connection mode selection
     detected_ports = [p.device for p in list_ports.comports()] if HAS_SERIAL else []
     auto_mock = not bool(detected_ports)
-
-    if "mock_mode_set" not in st.session_state:
-        st.session_state["mock_mode_set"] = True
-        st.session_state["mock_mode_val"] = auto_mock
-
-    mock_mode = st.toggle(
-        "Mock Mode (no hardware)",
-        value=st.session_state["mock_mode_val"],
-        key="mock_mode_toggle",
+    
+    connection_mode = st.radio(
+        "Connection Mode",
+        ["Serial", "WiFi", "Mock"],
+        horizontal=True,
+        help="Choose how to connect to ESP32"
     )
-    st.session_state["mock_mode_val"] = mock_mode
 
     port = None
     baud = 115200
-    if not mock_mode:
+    esp32_ip = None
+    mock_mode = False
+
+    if connection_mode == "Serial":
         if not HAS_SERIAL:
             st.error("pyserial not installed. Run: pip install pyserial")
         else:
             port = st.selectbox("Serial Port", detected_ports or ["(none detected)"])
         baud = st.number_input("Baud Rate", value=115200, step=9600)
+    
+    elif connection_mode == "WiFi":
+        if not HAS_WEBSOCKET:
+            st.error("websocket-client not installed. Run: pip install websocket-client")
+        esp32_ip = st.text_input(
+            "ESP32 IP Address",
+            value="192.168.1.100",
+            help="Find this in Arduino Serial Monitor when ESP32 boots"
+        )
+        st.caption("WebSocket Port: 81 (fixed)")
+    
+    else:  # Mock
+        mock_mode = True
 
     st.divider()
     st.subheader("Vision Module")
@@ -448,10 +527,15 @@ with st.sidebar:
 #  Status banner
 # ---------------------------------------------------------------------------
 
-if mock_mode:
-    st.info("MOCK MODE -- simulated data only. Turn off Mock Mode in the sidebar for real sensor data.")
-else:
-    st.success(f"LIVE -- Reading from {port} @ {baud} baud")
+if connection_mode == "Mock":
+    st.info("🎮 MOCK MODE -- simulated data only.")
+elif connection_mode == "WiFi":
+    if src and hasattr(src, 'connected') and src.connected:
+        st.success(f"📡 WiFi LIVE -- Connected to {esp32_ip}:81")
+    else:
+        st.warning(f"📡 WiFi Mode -- Trying to connect to {esp32_ip}:81")
+else:  # Serial
+    st.success(f"🔌 SERIAL LIVE -- Reading from {port} @ {baud} baud")
 
 # ---------------------------------------------------------------------------
 #  Session state
@@ -477,34 +561,68 @@ if start:
     if mock_mode:
         src = MockSource()
         st.session_state.mock_src = src  # Store reference for preset buttons
-    elif HAS_SERIAL and port and port != "(none detected)":
-        cached    = st.session_state.get("serial_src")
-        cached_ok = (
-            cached is not None
-            and getattr(cached, "_port", None) == port
-            and getattr(getattr(cached, "ser", None), "is_open", False)
-        )
-        if cached_ok:
-            src = cached
+    
+    elif connection_mode == "WiFi":
+        if not HAS_WEBSOCKET:
+            st.error("websocket-client not installed. Run: pip install websocket-client")
+        elif not esp32_ip:
+            st.error("Please enter ESP32 IP address")
         else:
-            if cached is not None:
+            cached = st.session_state.get("wifi_src")
+            cached_ok = (
+                cached is not None
+                and getattr(cached, "ws_url", None) == f"ws://{esp32_ip}:81"
+                and getattr(cached, "connected", False)
+            )
+            if cached_ok:
+                src = cached
+            else:
+                if cached is not None:
+                    try:
+                        cached.close()
+                    except Exception:
+                        pass
+                st.session_state.pop("wifi_src", None)
                 try:
-                    cached.close()
-                except Exception:
-                    pass
-            st.session_state.pop("serial_src", None)
-            try:
-                new_src = SerialSource(port, int(baud))
-                new_src._port = port
-                st.session_state["serial_src"] = new_src
-                src = new_src
-            except PermissionError:
-                st.error(
-                    f"Access denied on {port}. Another program is using this port.\n\n"
-                    "Fix: Close Arduino IDE Serial Monitor, then refresh this page."
-                )
-            except Exception as e:
-                st.error(f"Could not open {port}: {e}")
+                    new_src = WiFiSource(esp32_ip, port=81, timeout=2.0)
+                    if new_src.connected:
+                        st.session_state["wifi_src"] = new_src
+                        src = new_src
+                        st.success(f"✓ Connected to {esp32_ip}:81")
+                    else:
+                        st.error(f"Could not connect to {esp32_ip}:81. Check IP and WiFi.")
+                except Exception as e:
+                    st.error(f"WiFi connection error: {e}")
+    
+    elif connection_mode == "Serial":
+        if HAS_SERIAL and port and port != "(none detected)":
+            cached    = st.session_state.get("serial_src")
+            cached_ok = (
+                cached is not None
+                and getattr(cached, "_port", None) == port
+                and getattr(getattr(cached, "ser", None), "is_open", False)
+            )
+            if cached_ok:
+                src = cached
+            else:
+                if cached is not None:
+                    try:
+                        cached.close()
+                    except Exception:
+                        pass
+                st.session_state.pop("serial_src", None)
+                try:
+                    new_src = SerialSource(port, int(baud))
+                    new_src._port = port
+                    st.session_state["serial_src"] = new_src
+                    src = new_src
+                except PermissionError:
+                    st.error(
+                        f"Access denied on {port}. Another program is using this port.\n\n"
+                        "Fix: Close Arduino IDE Serial Monitor, then refresh this page."
+                    )
+                except Exception as e:
+                    st.error(f"Could not open {port}: {e}")
 
 # ---------------------------------------------------------------------------
 #  Layout placeholders
