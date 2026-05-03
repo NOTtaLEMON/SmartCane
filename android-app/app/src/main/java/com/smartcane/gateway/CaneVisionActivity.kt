@@ -44,6 +44,7 @@ import android.util.Log
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
@@ -113,10 +114,27 @@ class CaneVisionActivity : AppCompatActivity() {
                 FrameLayout.LayoutParams.WRAP_CONTENT
             )
         }
+        val dashboardBtn = Button(this).apply {
+            text = "Dashboard"
+            setBackgroundColor(Color.argb(200, 0, 123, 255))
+            setTextColor(Color.WHITE)
+            textSize = 16f
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = android.view.Gravity.BOTTOM or android.view.Gravity.END
+                setMargins(16, 16, 16, 16)
+            }
+            setOnClickListener {
+                startActivity(Intent(this@CaneVisionActivity, PhoneDashboardActivity::class.java))
+            }
+        }
         val root = FrameLayout(this).apply {
             addView(previewView)
             addView(overlayView)
             addView(statusText)
+            addView(dashboardBtn)
         }
         setContentView(root)
 

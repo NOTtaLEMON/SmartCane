@@ -147,9 +147,16 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
             throw IllegalStateException("Unexpected output tensor shape: ${outShape.contentToString()}")
         }
 
-        val numChannels = outShape[1]
-        val numAnchors = outShape[2]
-        val numClasses = numChannels - NUM_COORDS
+        val numChannels = min(outShape[1], outShape[2])
+        val numAnchors  = max(outShape[1], outShape[2])
+        val numClasses  = numChannels - NUM_COORDS
+        if (numClasses <= 0) {
+            throw IllegalStateException(
+                "Unexpected YOLO output shape: ${outShape.contentToString()} " +
+                "(calculated numClasses=$numClasses)"
+            )
+        }
+
         val outputBuf = Array(1) { Array(numChannels) { FloatArray(numAnchors) } }
         val outputs: MutableMap<Int, Any> = HashMap()
         outputs[0] = outputBuf

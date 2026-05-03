@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
             }
             add(Manifest.permission.ACCESS_FINE_LOCATION)
             add(Manifest.permission.SEND_SMS)
+            add(Manifest.permission.CAMERA)  // For vision
 
             // POST_NOTIFICATIONS needed for foreground service on API 33+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -55,6 +56,8 @@ class MainActivity : AppCompatActivity() {
             if (allGranted) {
                 startCaneService()
                 updateStatusText("Service running. Monitoring for falls...")
+                // Start vision activity automatically
+                startActivity(Intent(this@MainActivity, CaneVisionActivity::class.java))
             } else {
                 val denied = results.filterValues { !it }.keys.joinToString("\n")
                 updateStatusText("Denied — service cannot start.\n\nMissing:\n$denied")
@@ -83,6 +86,8 @@ class MainActivity : AppCompatActivity() {
         if (allPermissionsGranted()) {
             startCaneService()
             updateStatusText("Service running. Monitoring for falls...")
+            // Start vision activity automatically
+            startActivity(Intent(this, CaneVisionActivity::class.java))
         } else {
             updateStatusText("Tap START to request permissions and begin monitoring.")
         }
