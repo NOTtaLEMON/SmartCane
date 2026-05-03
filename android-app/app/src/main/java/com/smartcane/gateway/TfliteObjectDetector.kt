@@ -59,7 +59,31 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
         private const val NUM_COORDS     = 4
         private const val MASK_SIZE      = 160    // standard for YOLOv8-seg 320 input
 
-        // COCO class indices relevant to pedestrian / outdoor navigation
+        // Smart Cane custom segmentation classes (trained model)
+        private val SMART_CANE_LABELS = arrayOf(
+            "person",           // 0 - human obstacle
+            "furniture",        // 1 - chair, table, couch, bed
+            "vehicle",          // 2 - car, truck, motorcycle, bicycle
+            "animal",           // 3 - dog, cat, other animals
+            "pothole",          // 4 - road damage, hole
+            "water_puddle",     // 5 - standing water
+            "slippery_floor",   // 6 - ice, wet floor
+            "clear_path"        // 7 - safe walking area
+        )
+
+        // Confidence thresholds per class for obstacle detection
+        private val CLASS_CONFIDENCE_THRESHOLDS = mapOf(
+            0 to 0.35f,  // person - lower threshold for safety
+            1 to 0.40f,  // furniture
+            2 to 0.35f,  // vehicle - critical, lower threshold
+            3 to 0.40f,  // animal
+            4 to 0.45f,  // pothole - hazard, keep threshold
+            5 to 0.50f,  // water_puddle - hazard
+            6 to 0.50f,  // slippery_floor - hazard
+            7 to 0.60f   // clear_path - high threshold (rare in detections)
+        )
+
+        // COCO class indices (fallback for generic model)
         private val RELEVANT_CLASSES = setOf(
             0,  // person
             1,  // bicycle
@@ -75,11 +99,11 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
             56, // chair
             57, // couch
             58, // potted plant
-            60, // dining table (edge cases indoors)
-            63, // laptop (indoors)
+            60, // dining table
+            63, // laptop
         )
 
-        // Subset of COCO 80-class labels
+        // Subset of COCO 80-class labels (fallback)
         private val COCO_LABELS = arrayOf(
             "person","bicycle","car","motorcycle","airplane","bus","train","truck","boat",
             "traffic light","fire hydrant","stop sign","parking meter","bench","bird","cat",
@@ -91,12 +115,6 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
             "couch","potted plant","bed","dining table","toilet","tv","laptop","mouse",
             "remote","keyboard","cell phone","microwave","oven","toaster","sink","refrigerator",
             "book","clock","vase","scissors","teddy bear","hair drier","toothbrush"
-        )
-
-        private val CUSTOM_SEGMENTATION_LABELS = arrayOf(
-            "Water Puddle",
-            "Slippery Floor",
-            "Pothole"
         )
 
         private fun findModelFile(context: Context): String {
@@ -166,14 +184,20 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
         val candidates = mutableListOf<DetectionResult>()
         val numClasses = if (numChannels > 84) 80 else numChannels - NUM_COORDS
         val numMaskCoeffs = numChannels - NUM_COORDS - numClasses
-        val isCustomSegModel = numClasses != COCO_LABELS.size && numClasses != 80
+        val isCustomSegModel = numClasses == SMART_CANE_LABELS.size && numClasses != 80
 
         for (a in 0 until numAnchors) {
             var bestScore = CONF_THRESHOLD
             var bestClass = -1
             for (c in 0 until numClasses) {
                 val score = raw[NUM_COORDS + c][a]
-                if (score > bestScore) {
+                // Use class-specific threshold for custom model, global for generic
+                val threshold = if (isCustomSegModel && c in CLASS_CONFIDENCE_THRESHOLDS) {
+                    CLASS_CONFIDENCE_THRESHOLDS[c] ?: CONF_THRESHOLD
+                } else {
+                    CONF_THRESHOLD
+                }
+                if (score > bestScore && score > threshold) {
                     if (isCustomSegModel || c in RELEVANT_CLASSES) {
                         bestScore = score
                         bestClass = c
@@ -244,9 +268,11 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
 
     private fun labelForClassIndex(index: Int, numClasses: Int): String {
         return when {
+            // Custom Smart Cane model (8 classes)
+            numClasses == SMART_CANE_LABELS.size && index in SMART_CANE_LABELS.indices ->
+                SMART_CANE_LABELS[index].replace("_", " ").replaceFirstChar { it.uppercase() }
+            // Generic COCO model (80 classes)
             index in COCO_LABELS.indices -> COCO_LABELS[index]
-            numClasses <= CUSTOM_SEGMENTATION_LABELS.size && index in CUSTOM_SEGMENTATION_LABELS.indices ->
-                CUSTOM_SEGMENTATION_LABELS[index]
             else -> "Class $index"
         }
     }
