@@ -47,7 +47,7 @@ def main() -> None:
     parser.add_argument("--det",    action="store_true", help="Export detection model instead of segmentation")
     args = parser.parse_args()
 
-    # Pick default model: segmentation unless --det is specified
+    # Pick default model: segmentation unless --det or --model is specified
     if args.model:
         model_path = Path(args.model)
     elif args.det:
@@ -55,7 +55,10 @@ def main() -> None:
     else:
         model_path = Path("yolov8n-seg.pt")   # auto-downloaded by ultralytics if missing
 
-    print(f"[export] Loading {model_path} ...")
+    if not model_path.exists():
+        print(f"[export] Model {model_path} not found locally, downloading...")
+    else:
+        print(f"[export] Loading {model_path} ...")
     model = YOLO(str(model_path))
 
     is_seg = "seg" in model_path.stem

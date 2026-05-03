@@ -36,6 +36,7 @@ import android.bluetooth.*
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.location.Location
 import android.location.LocationManager
 import android.os.Build
@@ -106,7 +107,12 @@ class CaneSosService : Service() {
             .setContentText("Listening for BLE packets...")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .build()
-        startForeground(NOTIF_ID, notif)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+        } else {
+            startForeground(NOTIF_ID, notif)
+        }
     }
 
     // ---------------------------------------------------------------------
