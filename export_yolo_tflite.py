@@ -46,10 +46,12 @@ def main() -> None:
 
     model_path = Path(args.model)
     if not model_path.exists():
-        raise FileNotFoundError(f"Model not found: {model_path.resolve()}")
-
-    print(f"[export] Loading {model_path} ...")
-    model = YOLO(str(model_path))
+        print(f"[export] Model {model_path} not found locally, downloading...")
+        # If model doesn't exist, YOLO will download it
+        model = YOLO(args.model)
+    else:
+        print(f"[export] Loading {model_path} ...")
+        model = YOLO(str(model_path))
 
     print(f"[export] Exporting → TFLite  imgsz={args.imgsz}  half={args.half}")
     # ultralytics writes the file next to the source model

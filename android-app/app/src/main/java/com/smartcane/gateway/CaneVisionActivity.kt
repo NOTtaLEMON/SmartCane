@@ -138,14 +138,17 @@ class CaneVisionActivity : AppCompatActivity() {
         }
         setContentView(root)
 
-        // Load TFLite model
+        // Load TFLite model if available
         runCatching {
             detector = TfliteObjectDetector(this)
             Log.i(TAG, "TFLite model loaded")
+            statusText.text = "Vision active — model loaded"
         }.onFailure {
-            statusText.text = "ERROR: ${it.message}\nMake sure yolov8n_320_float16.tflite is in assets/"
+            statusText.text = "No YOLO TFLite model found in assets.\n" +
+                    "Place one of: yolov8n_seg_320_float16.tflite, yolov8s_seg_320_float16.tflite,\n" +
+                    "yolov8m_seg_320_float16.tflite, yolov8n_320_float16.tflite,\n" +
+                    "yolov8s_320_float16.tflite, yolov8m_320_float16.tflite"
             Log.e(TAG, "Model load failed", it)
-            return
         }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
@@ -199,12 +202,21 @@ class CaneVisionActivity : AppCompatActivity() {
     // -----------------------------------------------------------------------
     private fun analyzeFrame(imageProxy: ImageProxy) {
         val bitmap = imageProxy.toBitmap()
-        imageProxy.close()
 
-        val det = detector ?: return
+        val det = detector
+        if (det == null) {
+            runOnUiThread {
+                statusText.text = "Camera active — no YOLO model loaded. Place a TFLite model in assets and restart."
+                overlayView.setResults(emptyList(), bitmap.width.toFloat(), bitmap.height.toFloat())
+            }
+            imageProxy.close()
+            return
+        }
+
         val results = runCatching { det.detect(bitmap) }.getOrElse {
             Log.e(TAG, "Inference failed", it); emptyList()
         }
+        imageProxy.close()
 
         // Update overlay on main thread
         runOnUiThread {
@@ -290,6 +302,12 @@ class DetectionOverlayView(context: android.content.Context) :
                 det.boundingBox.right  * srcW * scaleX,
                 det.boundingBox.bottom * srcH * scaleY
             )
+            
+            // Draw segmentation mask if available
+            det.mask?.let { maskBitmap ->
+                canvas.drawBitmap(maskBitmap, null, box, null)
+            }
+
             canvas.drawRect(box, boxPaint)
             val label = "${det.label} ${(det.confidence * 100).toInt()}%"
             canvas.drawRect(box.left, box.top - 42f, box.left + labelPaint.measureText(label) + 8f, box.top, labelPaint)

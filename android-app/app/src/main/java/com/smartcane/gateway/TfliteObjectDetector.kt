@@ -38,7 +38,8 @@ import kotlin.math.min
 data class DetectionResult(
     val label: String,
     val confidence: Float,
-    val boundingBox: RectF          // normalized [0,1] coordinates
+    val boundingBox: RectF,         // normalized [0,1] coordinates
+    val mask: Bitmap? = null        // Segmentation mask (if available)
 )
 
 class TfliteObjectDetector(context: Context) : AutoCloseable {
@@ -56,6 +57,7 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
         private const val CONF_THRESHOLD = 0.35f
         private const val IOU_THRESHOLD  = 0.45f
         private const val NUM_COORDS     = 4
+        private const val MASK_SIZE      = 160    // standard for YOLOv8-seg 320 input
 
         // COCO class indices relevant to pedestrian / outdoor navigation
         private val RELEVANT_CLASSES = setOf(
@@ -141,38 +143,32 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
         val resized    = Bitmap.createScaledBitmap(bitmap, INPUT_SIZE, INPUT_SIZE, true)
         val inputBuf   = bitmapToByteBuffer(resized)
 
-        // Support YOLOv8 object and segmentation TFLite exports.
-        val outShape = interpreter.getOutputTensor(0).shape()
-        if (outShape.size != 3) {
-            throw IllegalStateException("Unexpected output tensor shape: ${outShape.contentToString()}")
-        }
-
-        val numChannels = min(outShape[1], outShape[2])
-        val numAnchors  = max(outShape[1], outShape[2])
-        val numClasses  = numChannels - NUM_COORDS
-        if (numClasses <= 0) {
-            throw IllegalStateException(
-                "Unexpected YOLO output shape: ${outShape.contentToString()} " +
-                "(calculated numClasses=$numClasses)"
-            )
-        }
-
-        val outputBuf = Array(1) { Array(numChannels) { FloatArray(numAnchors) } }
+        val outputCount = interpreter.outputTensorCount
         val outputs: MutableMap<Int, Any> = HashMap()
-        outputs[0] = outputBuf
+
+        // Setup outputs based on model type (detect vs seg)
+        val out0Shape = interpreter.getOutputTensor(0).shape() // [1, 116, 2100] or [1, 84, 2100]
+        val numChannels = min(out0Shape[1], out0Shape[2])
+        val numAnchors  = max(out0Shape[1], out0Shape[2])
+        val output0 = Array(1) { Array(numChannels) { FloatArray(numAnchors) } }
+        outputs[0] = output0
+
+        var protoMasks: Array<Array<Array<FloatArray>>>? = null
+        if (outputCount > 1) {
+            val out1Shape = interpreter.getOutputTensor(1).shape() // [1, 32, 80, 80] or similar
+            protoMasks = Array(1) { Array(out1Shape[1]) { Array(out1Shape[2]) { FloatArray(out1Shape[3]) } } }
+            outputs[1] = protoMasks
+        }
 
         interpreter.runForMultipleInputsOutputs(arrayOf(inputBuf), outputs)
 
-        val raw = outputBuf[0]
+        val raw = output0[0]
         val candidates = mutableListOf<DetectionResult>()
-        val isCustomSegModel = numClasses != COCO_LABELS.size
+        val numClasses = if (numChannels > 84) 80 else numChannels - NUM_COORDS
+        val numMaskCoeffs = numChannels - NUM_COORDS - numClasses
+        val isCustomSegModel = numClasses != COCO_LABELS.size && numClasses != 80
 
         for (a in 0 until numAnchors) {
-            val cx = raw[0][a]
-            val cy = raw[1][a]
-            val w  = raw[2][a]
-            val h  = raw[3][a]
-
             var bestScore = CONF_THRESHOLD
             var bestClass = -1
             for (c in 0 until numClasses) {
@@ -187,21 +183,63 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
             if (bestClass == -1) continue
 
             val label = labelForClassIndex(bestClass, numClasses)
-            if (label.isEmpty()) continue
+            val cx = raw[0][a]
+            val cy = raw[1][a]
+            val w  = raw[2][a]
+            val h  = raw[3][a]
 
             val x1 = ((cx - w / 2f) / INPUT_SIZE).coerceIn(0f, 1f)
             val y1 = ((cy - h / 2f) / INPUT_SIZE).coerceIn(0f, 1f)
             val x2 = ((cx + w / 2f) / INPUT_SIZE).coerceIn(0f, 1f)
             val y2 = ((cy + h / 2f) / INPUT_SIZE).coerceIn(0f, 1f)
 
+            var maskBitmap: Bitmap? = null
+            if (numMaskCoeffs > 0 && protoMasks != null) {
+                val coeffs = FloatArray(numMaskCoeffs)
+                for (i in 0 until numMaskCoeffs) {
+                    coeffs[i] = raw[NUM_COORDS + numClasses + i][a]
+                }
+                maskBitmap = generateMask(coeffs, protoMasks[0], RectF(x1, y1, x2, y2))
+            }
+
             candidates.add(DetectionResult(
                 label       = label,
                 confidence  = bestScore,
-                boundingBox = RectF(x1, y1, x2, y2)
+                boundingBox = RectF(x1, y1, x2, y2),
+                mask        = maskBitmap
             ))
         }
 
         return nonMaxSuppression(candidates).sortedByDescending { it.confidence }
+    }
+
+    private fun generateMask(coeffs: FloatArray, proto: Array<Array<FloatArray>>, box: RectF): Bitmap? {
+        val numCoeffs = coeffs.size
+        val h = proto[0].size
+        val w = proto[0][0].size
+        
+        val maskData = IntArray(w * h)
+        for (y in 0 until h) {
+            for (x in 0 until w) {
+                var sum = 0f
+                for (i in 0 until numCoeffs) {
+                    sum += coeffs[i] * proto[i][y][x]
+                }
+                // Sigmoid activation and threshold at 0.5 (logit 0)
+                if (sum > 0f) {
+                    maskData[y * w + x] = 0x8000FFFF.toInt() // Semi-transparent cyan
+                } else {
+                    maskData[y * w + x] = 0x00000000
+                }
+            }
+        }
+
+        val fullMask = Bitmap.createBitmap(maskData, w, h, Bitmap.Config.ARGB_8888)
+        
+        // Crop mask to bounding box and scale to INPUT_SIZE (to match coordinates)
+        // Note: box is [0,1], fullMask is 80x80 or 160x160.
+        // We'll return the full-size mask for the overlay view to handle scaling.
+        return fullMask
     }
 
     private fun labelForClassIndex(index: Int, numClasses: Int): String {
