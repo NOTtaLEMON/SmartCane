@@ -215,32 +215,34 @@ class WiFiSource:
             self.connected = False
 
     def read(self) -> "Packet | None":
-        """Read sensor packet from WebSocket"""
+        """Read sensor packet from WebSocket — drain buffer, return freshest packet"""
         if not self.connected:
-            self._connect()  # Try reconnect
+            self._connect()
             if not self.connected:
                 return None
-        
+
+        latest_pkt = None
         try:
             if self.ws:
-                self.ws.settimeout(0.1)
-                try:
-                    data = self.ws.recv()
-                    if data:
-                        self.last_raw = data
-                        pkt = Packet.parse(data)
-                        if pkt:
-                            self.last_pkt = pkt
-                            return pkt
-                except socket.timeout:
-                    pass
-                except Exception:
-                    self.connected = False
+                # Drain all buffered packets, keep only the freshest
+                self.ws.settimeout(0.0)
+                while True:
+                    try:
+                        data = self.ws.recv()
+                        if data:
+                            self.last_raw = data
+                            pkt = Packet.parse(data)
+                            if pkt:
+                                latest_pkt = pkt
+                    except Exception:
+                        break
         except Exception as e:
             self.last_raw = f"[WS ERROR] {e}"
             self.connected = False
-        
-        return None
+
+        if latest_pkt:
+            self.last_pkt = latest_pkt
+        return latest_pkt
 
     def close(self):
         """Close WebSocket connection"""
