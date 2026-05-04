@@ -27,3 +27,6 @@ Thumbs.db
 Project_Overview.html
 Smart Cane Clip-On *.pdf
 *.pdf
+
+# Ignore generated TFLite export directories
+*.tflite/
