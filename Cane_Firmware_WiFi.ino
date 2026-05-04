@@ -54,8 +54,10 @@ Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 WebSocketsServer webSocket(WEBSOCKET_PORT);
 
 unsigned long lastTick = 0;
+unsigned long lastIPDisplay = 0;
 bool wifiConnected = false;
 int connectedClients = 0;
+String espIP = "";
 
 // ========== WebSocket Event Handler ==========
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
@@ -125,9 +127,10 @@ void setup() {
 
   if (WiFi.status() == WL_CONNECTED) {
     wifiConnected = true;
+    espIP = WiFi.localIP().toString();
     Serial.println("[WiFi] ✓ Connected!");
     Serial.print("[WiFi] IP Address: ");
-    Serial.println(WiFi.localIP());
+    Serial.println(espIP);
     
     // Display IP on LCD (show last octet)
     lcd.clear();
@@ -175,6 +178,16 @@ void loop() {
     return;
   }
   lastTick = millis();
+
+  // ---- Periodically display IP Address (every 10 seconds) ----
+  if (millis() - lastIPDisplay >= 10000) {
+    lastIPDisplay = millis();
+    if (wifiConnected && espIP.length() > 0) {
+      Serial.println("\n[IP_INFO] Current IP Address: " + espIP);
+      Serial.println("[IP_INFO] WebSocket Port: 81");
+      Serial.println("[IP_INFO] Connected Clients: " + String(connectedClients) + "\n");
+    }
+  }
 
   // ---- Read ToF Distance ----
   VL53L0X_RangingMeasurementData_t measure;
