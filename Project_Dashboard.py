@@ -734,14 +734,17 @@ with export_tabs[2]:
             st.metric("Fall Events", fall_count)
             
             # Download alerts CSV
-            csv_alert = alert_data.to_csv(index=False)
-            st.download_button(
-                label="🚨 Download Alert Log as CSV",
-                data=csv_alert,
-                file_name=f"smartcane_alerts_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
+            if st.session_state.alerts:
+                import io
+                alert_rows = [{"time": a.timestamp.strftime('%H:%M:%S'), "type": a.alert_type, "severity": a.severity, "message": a.message, "value": a.sensor_value} for a in st.session_state.alerts]
+                csv_alert = __import__('pandas').DataFrame(alert_rows).to_csv(index=False)
+                st.download_button(
+                    label="🚨 Download Alert Log as CSV",
+                    data=csv_alert,
+                    file_name=f"smartcane_alerts_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
             
             # Display recent alerts
             st.caption("Recent Alerts (latest first):")
