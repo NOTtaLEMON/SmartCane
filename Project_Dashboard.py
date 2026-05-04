@@ -30,7 +30,7 @@ except Exception:
     HAS_SERIAL = False
 
 try:
-    import websocket
+    import websocket  # type: ignore
     HAS_WEBSOCKET = True
 except Exception:
     HAS_WEBSOCKET = False
@@ -207,7 +207,7 @@ class WiFiSource:
     def _connect(self):
         """Establish WebSocket connection to ESP32"""
         try:
-            import websocket
+            import websocket  # type: ignore
             self.ws = websocket.create_connection(self.ws_url, timeout=self.timeout)
             self.connected = True
         except Exception as e:
@@ -524,20 +524,6 @@ with st.sidebar:
             st.session_state.serial_raw = []
 
 # ---------------------------------------------------------------------------
-#  Status banner
-# ---------------------------------------------------------------------------
-
-if connection_mode == "Mock":
-    st.info("🎮 MOCK MODE -- simulated data only.")
-elif connection_mode == "WiFi":
-    if src and hasattr(src, 'connected') and src.connected:
-        st.success(f"📡 WiFi LIVE -- Connected to {esp32_ip}:81")
-    else:
-        st.warning(f"📡 WiFi Mode -- Trying to connect to {esp32_ip}:81")
-else:  # Serial
-    st.success(f"🔌 SERIAL LIVE -- Reading from {port} @ {baud} baud")
-
-# ---------------------------------------------------------------------------
 #  Session state
 # ---------------------------------------------------------------------------
 
@@ -551,6 +537,17 @@ if "alerts" not in st.session_state:
     st.session_state.alerts = []
 if "last_alert" not in st.session_state:
     st.session_state.last_alert = None
+
+# ---------------------------------------------------------------------------
+#  Status banner
+# ---------------------------------------------------------------------------
+
+if connection_mode == "Mock":
+    st.info("🎮 MOCK MODE -- simulated data only.")
+elif connection_mode == "WiFi":
+    st.info(f"📡 WiFi Mode -- Enter IP: {esp32_ip}:81")
+else:  # Serial
+    st.info(f"🔌 SERIAL Mode -- {port} @ {baud} baud")
 
 # ---------------------------------------------------------------------------
 #  Open source (cached so the port stays open across reruns)
@@ -623,6 +620,21 @@ if start:
                     )
                 except Exception as e:
                     st.error(f"Could not open {port}: {e}")
+
+# ---------------------------------------------------------------------------
+#  Update status banner after connection
+# ---------------------------------------------------------------------------
+
+if src is not None:
+    if connection_mode == "WiFi":
+        if hasattr(src, 'connected') and src.connected:
+            st.success(f"📡 WiFi LIVE -- Connected to {esp32_ip}:81")
+        else:
+            st.warning(f"📡 WiFi Mode -- Trying to connect to {esp32_ip}:81")
+    elif connection_mode == "Serial":
+        st.success(f"🔌 SERIAL LIVE -- Reading from {port} @ {baud} baud")
+    elif connection_mode == "Mock":
+        st.success("🎮 MOCK MODE -- Data streaming")
 
 # ---------------------------------------------------------------------------
 #  Layout placeholders
