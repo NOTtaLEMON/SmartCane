@@ -34,6 +34,12 @@
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_VL53L0X.h>
 
+// MPU6050 Register Definitions (no library needed)
+#define MPU6050_ADDR 0x68
+#define MPU6050_PWR_MGMT_1 0x6B
+#define MPU6050_ACCEL_XOUT_H 0x3B
+#define FALL_THRESHOLD 20000  // Acceleration threshold for fall detection
+
 // ========== WiFi Configuration ==========
 #define WIFI_SSID     "YOUR_SSID"        // Change this to your WiFi name
 #define WIFI_PASSWORD "YOUR_PASSWORD"    // Change this to your WiFi password
@@ -43,6 +49,8 @@
 #define LED_PIN     2
 #define BUZZER_PIN  4
 #define LDR_PIN     34
+#define LIDAR_RX    16   // TF-Luna RX
+#define LIDAR_TX    17   // TF-Luna TX
 
 // ========== Tuning ==========
 #define LDR_DARK_THRESHOLD  700
@@ -58,6 +66,60 @@ unsigned long lastIPDisplay = 0;
 bool wifiConnected = false;
 int connectedClients = 0;
 String espIP = "";
+int lidarDistance = 0;  // Distance in cm from TF-Luna
+int fallDetected = 0;   // Fall flag (0 or 1)
+
+// ========== Helper Functions ==========
+
+// Read LIDAR distance from TF-Luna (via UART2)
+void readLidarDistance() {
+  if (Serial2.available() >= 9) {
+    byte data[9];
+    if (Serial2.read() == 0x59) {
+      data[0] = 0x59;
+      data[1] = Serial2.read();
+      if (data[1] == 0x59) {
+        for (int i = 2; i < 9; i++) {
+          data[i] = Serial2.read();
+        }
+        lidarDistance = (data[2] | (data[3] << 8));
+      }
+    }
+  }
+}
+
+// Initialize MPU6050
+void initMPU6050() {
+  Wire.beginTransmission(MPU6050_ADDR);
+  Wire.write(MPU6050_PWR_MGMT_1);
+  Wire.write(0);
+  Wire.endTransmission(true);
+  Serial.println("[MPU6050] Initialized");
+}
+
+// Read accelerometer and detect falls
+void detectFall() {
+  Wire.beginTransmission(MPU6050_ADDR);
+  Wire.write(MPU6050_ACCEL_XOUT_H);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU6050_ADDR, 6, true);
+  
+  int16_t accelX = (Wire.read() << 8) | Wire.read();
+  int16_t accelY = (Wire.read() << 8) | Wire.read();
+  int16_t accelZ = (Wire.read() << 8) | Wire.read();
+  
+  // Calculate total acceleration magnitude
+  long accelMagnitude = (long)accelX * accelX + (long)accelY * accelY + (long)accelZ * accelZ;
+  
+  // If acceleration exceeds threshold, flag as fall
+  fallDetected = (accelMagnitude > FALL_THRESHOLD) ? 1 : 0;
+  
+  if (fallDetected) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(100);
+    digitalWrite(BUZZER_PIN, LOW);
+  }
+}
 
 // ========== WebSocket Event Handler ==========
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
@@ -87,6 +149,13 @@ void setup() {
 
   // Initialize I2C
   Wire.begin(21, 22);
+  
+  // Initialize UART2 for TF-Luna LIDAR (115200 baud)
+  Serial2.begin(115200, SERIAL_8N1, LIDAR_RX, LIDAR_TX);
+  Serial.println("[LIDAR] UART2 initialized");
+  
+  // Initialize MPU6050
+  initMPU6050();
   
   // Initialize GPIO
   pinMode(LED_PIN, OUTPUT);
@@ -194,6 +263,12 @@ void loop() {
   lox.rangingTest(&measure, false);
   int distFwd = (measure.RangeStatus != 4) ? (int)measure.RangeMilliMeter : 0;
 
+  // ---- Read LIDAR Distance (downward) ----
+  readLidarDistance();
+
+  // ---- Detect Falls (MPU6050) ----
+  detectFall();
+
   // ---- Read Light Sensor (LDR) ----
   int ldrValue = analogRead(LDR_PIN);
   bool isDark = (ldrValue < LDR_DARK_THRESHOLD);
@@ -236,7 +311,7 @@ void loop() {
 
   // ---- Prepare sensor packet (format: dist_fwd,dist_drop,fall_flag,light_val) ----
   char buf[64];
-  snprintf(buf, sizeof(buf), "%03d,000,0,%04d", distFwd, ldrValue);
+  snprintf(buf, sizeof(buf), "%03d,%03d,%d,%04d", distFwd, lidarDistance, fallDetected, ldrValue);
 
   // ---- Broadcast via WebSocket to all connected clients ----
   if (wifiConnected && connectedClients > 0) {
