@@ -581,7 +581,7 @@ if start:
                         pass
                 st.session_state.pop("wifi_src", None)
                 try:
-                    new_src = WiFiSource(esp32_ip, port=81, timeout=2.0)
+                    new_src = WiFiSource(esp32_ip, port=81, timeout=10.0)
                     if new_src.connected:
                         st.session_state["wifi_src"] = new_src
                         src = new_src
