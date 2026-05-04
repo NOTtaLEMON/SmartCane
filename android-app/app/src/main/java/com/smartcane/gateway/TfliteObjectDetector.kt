@@ -238,33 +238,40 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
         return nonMaxSuppression(candidates).sortedByDescending { it.confidence }
     }
 
-    private fun generateMask(coeffs: FloatArray, proto: Array<Array<FloatArray>>, box: RectF): Bitmap? {
+    private fun generateMask(coeffs: FloatArray, proto: Array<Array<FloatArray>>, box: RectF): Bitmap {
         val numCoeffs = coeffs.size
-        val h = proto[0].size
-        val w = proto[0][0].size
+        val protoH = proto[0].size
+        val protoW = proto[0][0].size
         
-        val maskData = IntArray(w * h)
-        for (y in 0 until h) {
-            for (x in 0 until w) {
+        // The mask is global to the image. We need to crop it to the bounding box.
+        // box coordinates are normalized [0,1]
+        val x1 = (box.left * protoW).toInt().coerceIn(0, protoW - 1)
+        val y1 = (box.top * protoH).toInt().coerceIn(0, protoH - 1)
+        val x2 = (box.right * protoW).toInt().coerceIn(0, protoW - 1)
+        val y2 = (box.bottom * protoH).toInt().coerceIn(0, protoH - 1)
+        
+        val width = max(1, x2 - x1)
+        val height = max(1, y2 - y1)
+        
+        val maskData = IntArray(width * height)
+        for (y in 0 until height) {
+            val actualY = y1 + y
+            for (x in 0 until width) {
+                val actualX = x1 + x
                 var sum = 0f
                 for (i in 0 until numCoeffs) {
-                    sum += coeffs[i] * proto[i][y][x]
+                    sum += coeffs[i] * proto[i][actualY][actualX]
                 }
-                // Sigmoid activation and threshold at 0.5 (logit 0)
+                // Sigmoid activation threshold (logit 0)
                 if (sum > 0f) {
-                    maskData[y * w + x] = 0x8000FFFF.toInt() // Semi-transparent cyan
+                    maskData[y * width + x] = 0x8000FFFF.toInt() // Semi-transparent cyan
                 } else {
-                    maskData[y * w + x] = 0x00000000
+                    maskData[y * width + x] = 0x00000000
                 }
             }
         }
 
-        val fullMask = Bitmap.createBitmap(maskData, w, h, Bitmap.Config.ARGB_8888)
-        
-        // Crop mask to bounding box and scale to INPUT_SIZE (to match coordinates)
-        // Note: box is [0,1], fullMask is 80x80 or 160x160.
-        // We'll return the full-size mask for the overlay view to handle scaling.
-        return fullMask
+        return Bitmap.createBitmap(maskData, width, height, Bitmap.Config.ARGB_8888)
     }
 
     private fun labelForClassIndex(index: Int, numClasses: Int): String {

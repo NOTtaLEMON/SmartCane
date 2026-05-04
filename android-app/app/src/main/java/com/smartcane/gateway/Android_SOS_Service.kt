@@ -116,9 +116,11 @@ class CaneSosService : Service() {
     // -------------------------------------------------------------------------
     //  WebSocket connection
     // -------------------------------------------------------------------------
-    private fun getEsp32Ip(): String =
-        getSharedPreferences(PREF_NAME, MODE_PRIVATE)
+    private fun getEsp32Ip(): String {
+        val raw = getSharedPreferences(PREF_NAME, MODE_PRIVATE)
             .getString(PREF_ESP32_IP, DEFAULT_IP) ?: DEFAULT_IP
+        return raw.replace("\\s".toRegex(), "") // Remove all whitespace
+    }
 
     private fun connectToESP32() {
         val ip  = getEsp32Ip()
@@ -131,8 +133,13 @@ class CaneSosService : Service() {
             .retryOnConnectionFailure(false)
             .build()
 
-        val request = Request.Builder().url(url).build()
-        webSocket = okClient!!.newWebSocket(request, wsListener)
+        try {
+            val request = Request.Builder().url(url).build()
+            webSocket = okClient!!.newWebSocket(request, wsListener)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to build WebSocket request: ${e.message}")
+            scheduleReconnect()
+        }
     }
 
     private fun reconnect() {
