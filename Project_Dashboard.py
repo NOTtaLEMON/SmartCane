@@ -587,7 +587,7 @@ if start:
                         src = new_src
                         st.success(f"✓ Connected to {esp32_ip}:81")
                     else:
-                        st.error(f"Could not connect to {esp32_ip}:81. Check IP and WiFi.")
+                        st.error(f"Could not connect to {esp32_ip}:81. Error: {new_src.last_raw}")
                 except Exception as e:
                     st.error(f"WiFi connection error: {e}")
     
