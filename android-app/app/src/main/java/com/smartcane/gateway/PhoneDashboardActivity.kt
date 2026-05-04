@@ -75,10 +75,6 @@ class PhoneDashboardActivity : AppCompatActivity() {
     // -----------------------------------------------------------------------
     private val allPermissions: Array<String>
         get() = buildList {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                add(Manifest.permission.BLUETOOTH_CONNECT)
-                add(Manifest.permission.BLUETOOTH_SCAN)
-            }
             add(Manifest.permission.ACCESS_FINE_LOCATION)
             add(Manifest.permission.SEND_SMS)
             add(Manifest.permission.CAMERA)
@@ -136,9 +132,16 @@ class PhoneDashboardActivity : AppCompatActivity() {
         ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
     }
 
+    private fun getEsp32Ip(): String =
+        getSharedPreferences(CaneSosService.PREF_NAME, MODE_PRIVATE)
+            .getString(CaneSosService.PREF_ESP32_IP, CaneSosService.DEFAULT_IP)
+            ?: CaneSosService.DEFAULT_IP
+
     private fun startCaneService() {
-        ContextCompat.startForegroundService(this, Intent(this, CaneSosService::class.java))
-        tvBleStatus.text = "Connecting to cane via BLE..."
+        val ip = getEsp32Ip()
+        val intent = Intent(this, CaneSosService::class.java).putExtra("esp32_ip", ip)
+        ContextCompat.startForegroundService(this, intent)
+        tvBleStatus.text = "WiFi: Connecting to $ip..."
     }
 
     private fun registerReceivers() {
@@ -159,7 +162,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
         val fall     = parts[2].trim().toIntOrNull() ?: 0
         val light    = parts[3].trim().toIntOrNull() ?: 0
 
-        tvBleStatus.text = "BLE: Connected"
+        tvBleStatus.text = "WiFi: Connected"
         tvBleStatus.setTextColor(Color.parseColor("#00C853"))
 
         tvDistFwd.text   = "Forward: ${mmReadable(distFwd)}"
@@ -288,8 +291,35 @@ class PhoneDashboardActivity : AppCompatActivity() {
             gravity   = Gravity.CENTER_HORIZONTAL
         })
 
-        // --- BLE status ---
-        tvBleStatus = valueCard { text = "BLE: Connecting..." }
+        // --- WiFi IP input ---
+        val prefs   = getSharedPreferences(CaneSosService.PREF_NAME, MODE_PRIVATE)
+        val ipInput = android.widget.EditText(this).apply {
+            setText(prefs.getString(CaneSosService.PREF_ESP32_IP, CaneSosService.DEFAULT_IP))
+            hint        = "ESP32 IP (e.g. 192.168.1.100)"
+            inputType   = android.text.InputType.TYPE_CLASS_TEXT
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            setBackgroundColor(Color.parseColor("#2A2A2A"))
+            setPadding(16, 12, 16, 12)
+        }
+        val applyBtn = Button(this).apply {
+            text = "Connect"
+            setBackgroundColor(Color.parseColor("#1565C0"))
+            setTextColor(Color.WHITE)
+            setOnClickListener {
+                val ip = ipInput.text.toString().trim()
+                if (ip.isNotEmpty()) {
+                    prefs.edit().putString(CaneSosService.PREF_ESP32_IP, ip).apply()
+                    startCaneService()
+                }
+            }
+        }
+        root.addView(heading("ESP32 IP Address"))
+        root.addView(ipInput)
+        root.addView(applyBtn)
+
+        // --- WiFi status ---
+        tvBleStatus = valueCard { text = "WiFi: Connecting..." }
         root.addView(heading("Connection"))
         root.addView(tvBleStatus)
 

@@ -37,7 +37,7 @@
 
     <!-- Foreground service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <!-- Notification (API 33+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -55,7 +55,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- Required hardware features -->
-    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <uses-feature android:name="android.hardware.camera"       android:required="true" />
 
     <!-- =====================================================================
@@ -108,12 +108,12 @@
             android:exported="false"
             android:label="Smart Cane (Debug)" />
 
-        <!-- BLE + SOS background service -->
+        <!-- WiFi WebSocket + SOS background service -->
         <service
             android:name=".CaneSosService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice" />
+            android:foregroundServiceType="dataSync" />
 
     </application>
 

@@ -41,8 +41,8 @@
 #define FALL_THRESHOLD 20000  // Acceleration threshold for fall detection
 
 // ========== WiFi Configuration ==========
-#define WIFI_SSID     "YOUR_SSID"        // Change this to your WiFi name
-#define WIFI_PASSWORD "YOUR_PASSWORD"    // Change this to your WiFi password
+#define WIFI_SSID     "YOUR_SSID"        // *** ARAVIND: replace with actual SSID ***
+#define WIFI_PASSWORD "YOUR_PASSWORD"    // *** ARAVIND: replace with actual password ***
 #define WEBSOCKET_PORT 81
 
 // ========== Pin Map ==========
@@ -63,6 +63,7 @@ WebSocketsServer webSocket(WEBSOCKET_PORT);
 
 unsigned long lastTick = 0;
 unsigned long lastIPDisplay = 0;
+unsigned long lastWifiRetry = 0;
 bool wifiConnected = false;
 int connectedClients = 0;
 String espIP = "";
@@ -235,10 +236,19 @@ void loop() {
   // Check WiFi connection
   if (!wifiConnected && WiFi.status() == WL_CONNECTED) {
     wifiConnected = true;
-    Serial.println("[WiFi] Re-connected!");
+    espIP = WiFi.localIP().toString();
+    webSocket.begin();
+    webSocket.onEvent(webSocketEvent);
+    Serial.println("[WiFi] Re-connected! IP: " + espIP);
   } else if (wifiConnected && WiFi.status() != WL_CONNECTED) {
     wifiConnected = false;
+    connectedClients = 0;
     Serial.println("[WiFi] Disconnected!");
+  } else if (!wifiConnected && (millis() - lastWifiRetry > 30000)) {
+    lastWifiRetry = millis();
+    Serial.println("[WiFi] Retrying connection...");
+    WiFi.disconnect();
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   }
 
   // Throttle main sensor loop

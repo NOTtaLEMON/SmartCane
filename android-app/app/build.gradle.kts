@@ -57,4 +57,7 @@ dependencies {
 
     // ── Coroutines (async work) ─────────────────────────────────────────────
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+    // ── OkHttp WebSocket (replaces BLE for ESP32 WiFi connectivity) ─────────
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
