@@ -46,6 +46,7 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
 
     companion object {
         private val MODEL_FILES = arrayOf(
+            "smartcane_segmentation_320_float16.tflite",
             "yolov8n_seg_320_float16.tflite",
             "yolov8s_seg_320_float16.tflite",
             "yolov8m_seg_320_float16.tflite",
