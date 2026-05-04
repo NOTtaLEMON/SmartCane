@@ -71,6 +71,10 @@ class CaneSosService : Service() {
         // LocalBroadcast action + extras — received by PhoneDashboardActivity
         const val ACTION_SENSOR_DATA = "com.smartcane.gateway.SENSOR_DATA"
         const val EXTRA_PACKET       = "packet"
+
+        // Connection status broadcast
+        const val ACTION_CONNECTION_STATUS = "com.smartcane.gateway.CONNECTION_STATUS"
+        const val EXTRA_STATUS             = "status"
     }
 
     private var okClient: OkHttpClient? = null
@@ -152,6 +156,9 @@ class CaneSosService : Service() {
         override fun onOpen(ws: WebSocket, response: Response) {
             Log.d(TAG, "WebSocket connected")
             updateNotification("WiFi connected — monitoring for falls")
+            LocalBroadcastManager.getInstance(this@CaneSosService).sendBroadcast(
+                Intent(ACTION_CONNECTION_STATUS).putExtra(EXTRA_STATUS, "connected")
+            )
         }
 
         override fun onMessage(ws: WebSocket, text: String) {
@@ -161,12 +168,20 @@ class CaneSosService : Service() {
         override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
             Log.e(TAG, "WebSocket error: ${t.message}")
             updateNotification("WiFi disconnected — retrying in 5s...")
+            LocalBroadcastManager.getInstance(this@CaneSosService).sendBroadcast(
+                Intent(ACTION_CONNECTION_STATUS).putExtra(EXTRA_STATUS, "disconnected")
+            )
             scheduleReconnect()
         }
 
         override fun onClosed(ws: WebSocket, code: Int, reason: String) {
             Log.d(TAG, "WebSocket closed: $reason")
-            if (code != 1000) scheduleReconnect()
+            if (code != 1000) {
+                LocalBroadcastManager.getInstance(this@CaneSosService).sendBroadcast(
+                    Intent(ACTION_CONNECTION_STATUS).putExtra(EXTRA_STATUS, "disconnected")
+                )
+                scheduleReconnect()
+            }
         }
     }
 

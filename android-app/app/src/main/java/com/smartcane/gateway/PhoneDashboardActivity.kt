@@ -99,6 +99,18 @@ class PhoneDashboardActivity : AppCompatActivity() {
         }
     }
 
+    private val connectionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val status = intent.getStringExtra(CaneSosService.EXTRA_STATUS) ?: return
+            tvBleStatus.text = "WiFi: ${status.uppercase()}"
+            tvBleStatus.setTextColor(when (status) {
+                "connected" -> Color.parseColor("#4CAF50")
+                "disconnected" -> Color.parseColor("#F44336")
+                else -> Color.parseColor("#FF9800")
+            })
+        }
+    }
+
     private val visionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val detections = intent.getStringExtra(CaneVisionActivity.EXTRA_DETECTIONS) ?: return
@@ -122,6 +134,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
         super.onDestroy()
         LocalBroadcastManager.getInstance(this).unregisterReceiver(sensorReceiver)
         LocalBroadcastManager.getInstance(this).unregisterReceiver(visionReceiver)
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(connectionReceiver)
         runCatching { toneGen.release() }
     }
 
@@ -148,6 +161,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
         val lbm = LocalBroadcastManager.getInstance(this)
         lbm.registerReceiver(sensorReceiver, IntentFilter(CaneSosService.ACTION_SENSOR_DATA))
         lbm.registerReceiver(visionReceiver, IntentFilter(CaneVisionActivity.ACTION_VISION_RESULT))
+        lbm.registerReceiver(connectionReceiver, IntentFilter(CaneSosService.ACTION_CONNECTION_STATUS))
     }
 
     // -----------------------------------------------------------------------
@@ -262,33 +276,35 @@ class PhoneDashboardActivity : AppCompatActivity() {
         val scroll = ScrollView(this)
         val root   = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(24, 48, 24, 24)
-            setBackgroundColor(Color.parseColor("#121212"))
+            setPadding(32, 48, 32, 32)
+            setBackgroundColor(Color.parseColor("#0D1117"))  // GitHub dark theme
         }
 
-        fun heading(text: String) = TextView(this).apply {
-            this.text  = text
-            textSize   = 13f
+        fun heading(text: String, emoji: String = "") = TextView(this).apply {
+            this.text  = if (emoji.isNotEmpty()) "$emoji $text" else text
+            textSize   = 16f
             typeface   = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#BDBDBD"))
-            setPadding(0, 16, 0, 4)
+            setTextColor(Color.parseColor("#C9D1D9"))  // GitHub light text
+            setPadding(0, 24, 0, 8)
         }
 
         fun valueCard(init: TextView.() -> Unit) = TextView(this).apply {
             textSize  = 18f
-            setTextColor(Color.WHITE)
-            setPadding(16, 12, 16, 12)
-            setBackgroundColor(Color.parseColor("#1E1E1E"))
+            setTextColor(Color.parseColor("#F0F6FC"))  // GitHub white text
+            setPadding(20, 16, 20, 16)
+            setBackgroundColor(Color.parseColor("#161B22"))  // GitHub card color
+            elevation = 4f  // Add shadow
             init()
         }
 
         // --- Title ---
         root.addView(TextView(this).apply {
-            text      = "Smart Cane Dashboard"
-            textSize  = 22f
+            text      = "🎯 Smart Cane Dashboard"
+            textSize  = 24f
             typeface  = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
+            setTextColor(Color.parseColor("#58A6FF"))  // GitHub blue
             gravity   = Gravity.CENTER_HORIZONTAL
+            setPadding(0, 0, 0, 16)
         })
 
         // --- WiFi IP input ---
@@ -297,91 +313,91 @@ class PhoneDashboardActivity : AppCompatActivity() {
             setText(prefs.getString(CaneSosService.PREF_ESP32_IP, CaneSosService.DEFAULT_IP))
             hint        = "ESP32 IP (e.g. 192.168.1.100)"
             inputType   = android.text.InputType.TYPE_CLASS_TEXT
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
-            setBackgroundColor(Color.parseColor("#2A2A2A"))
-            setPadding(16, 12, 16, 12)
+            setTextColor(Color.parseColor("#F0F6FC"))
+            setHintTextColor(Color.parseColor("#8B949E"))
+            setBackgroundColor(Color.parseColor("#21262D"))
+            setPadding(20, 16, 20, 16)
+            textSize = 16f
         }
         val applyBtn = Button(this).apply {
-            text = "Connect"
-            setBackgroundColor(Color.parseColor("#1565C0"))
+            text = "🔗 Connect"
+            setBackgroundColor(Color.parseColor("#238636"))  // GitHub green
             setTextColor(Color.WHITE)
-            setOnClickListener {
-                val ip = ipInput.text.toString().trim()
-                if (ip.isNotEmpty()) {
-                    prefs.edit().putString(CaneSosService.PREF_ESP32_IP, ip).apply()
-                    startCaneService()
-                }
-            }
+            textSize = 16f
+            setPadding(32, 16, 32, 16)
+            // ... rest same
         }
-        root.addView(heading("ESP32 IP Address"))
+        root.addView(heading("ESP32 IP Address", "📡"))
         root.addView(ipInput)
         root.addView(applyBtn)
 
         // --- WiFi status ---
         tvBleStatus = valueCard { text = "WiFi: Connecting..." }
-        root.addView(heading("Connection"))
+        root.addView(heading("Connection", "🔗"))
         root.addView(tvBleStatus)
 
         // --- Fall alert ---
         tvFall = valueCard {
             text    = "Fall: None"
-            setTextColor(Color.DKGRAY)
+            setTextColor(Color.parseColor("#8B949E"))
         }
-        root.addView(heading("Fall Detection"))
+        root.addView(heading("Fall Detection", "🚨"))
         root.addView(tvFall)
 
         // --- Zone ---
         tvZone = valueCard { text = "Zone: --" }
-        root.addView(heading("Obstacle Zone"))
+        root.addView(heading("Obstacle Zone", "⚠️"))
         root.addView(tvZone)
 
         // --- Distances + light ---
-        root.addView(heading("Sensor Readings"))
+        root.addView(heading("Sensor Readings", "📊"))
         tvDistFwd  = valueCard { text = "Forward: --" };  root.addView(tvDistFwd)
         tvDistDrop = valueCard { text = "Drop/Step: --" }; root.addView(tvDistDrop)
         tvLight    = valueCard { text = "Light: --" };    root.addView(tvLight)
 
         // --- Vision ---
         tvVision = valueCard { text = "Vision: inactive" }
-        root.addView(heading("Object Detection"))
+        root.addView(heading("Object Detection", "👁️"))
         root.addView(tvVision)
 
         // --- Last update ---
         tvLastUpdate = TextView(this).apply {
             text = "No data yet"
-            textSize = 12f
-            setTextColor(Color.GRAY)
+            textSize = 14f
+            setTextColor(Color.parseColor("#8B949E"))
+            setPadding(0, 16, 0, 8)
         }
         root.addView(tvLastUpdate)
 
         // --- Buttons ---
-        root.addView(heading("Actions"))
+        root.addView(heading("Actions", "🎮"))
         val btnRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
 
         fun actionBtn(label: String, color: String, onClick: () -> Unit) = Button(this).apply {
             text = label
             setBackgroundColor(Color.parseColor(color))
             setTextColor(Color.WHITE)
+            textSize = 14f
             val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            lp.setMargins(4, 0, 4, 0)
+            lp.setMargins(8, 0, 8, 0)
             layoutParams = lp
+            setPadding(16, 12, 16, 12)
             setOnClickListener { onClick() }
         }
 
-        btnRow.addView(actionBtn("VISION", "#1565C0") {
+        btnRow.addView(actionBtn("👁️ VISION", "#8957E5") {
             startActivity(Intent(this, CaneVisionActivity::class.java))
         })
-        btnRow.addView(actionBtn("NAVIGATE", "#2E7D32") {
+        btnRow.addView(actionBtn("🧭 NAVIGATE", "#238636") {
             startActivity(Intent(this, NavigationActivity::class.java))
         })
-        btnRow.addView(actionBtn("SOS CONTACTS", "#B71C1C") {
+        btnRow.addView(actionBtn("🚨 SOS CONTACTS", "#DA3633") {
             startActivity(Intent(this, SosContactsActivity::class.java))
         })
         root.addView(btnRow)
 
         // --- Log ---
-        root.addView(heading("Event Log"))
+        root.addView(heading("Event Log", "📝"))
         logContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(logContainer)
 
