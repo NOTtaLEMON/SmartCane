@@ -53,20 +53,30 @@ def pick_device() -> str:
 
 
 def label_for(class_name: str) -> str:
-    """Map YOLO's 80 COCO classes -> the 3 semantic buckets the cane cares about."""
-    if class_name in {"car", "bus", "truck", "motorcycle"}:
+    """Map YOLO class names to the labels the cane cares about.
+    Custom segmentation classes are passed through so hazards like
+    water puddle, slippery floor, and pothole become visible.
+    """
+    normalized = class_name.strip().lower()
+    if normalized in {"car", "bus", "truck", "motorcycle"}:
         return "Vehicle"
-    if class_name == "person":
+    if normalized == "person":
         return "Person"
-    if class_name == "bicycle":
+    if normalized == "bicycle":
         return "Bicycle"
-    if class_name == "dog":
+    if normalized == "dog":
         return "Dog"
-    if class_name in {"bench", "chair"}:
+    if normalized in {"bench", "chair"}:
         return "Furniture"
-    if class_name in {"traffic light", "stop sign"}:
+    if normalized in {"traffic light", "stop sign"}:
         return "TrafficSign"
-    return ""  # ignored
+    if normalized in {"water puddle", "puddle"}:
+        return "Water Puddle"
+    if normalized in {"slippery floor", "slippery"}:
+        return "Slippery Floor"
+    if normalized == "pothole":
+        return "Pothole"
+    return class_name.title() if class_name else ""
 
 
 def run(src: str, model_path: str, conf: float, show: bool) -> None:
