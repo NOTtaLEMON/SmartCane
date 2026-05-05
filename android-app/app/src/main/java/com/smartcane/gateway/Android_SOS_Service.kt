@@ -91,8 +91,8 @@ class CaneSosService : Service() {
     // -------------------------------------------------------------------------
     override fun onCreate() {
         super.onCreate()
-        startAsForeground("Connecting to ESP32...")
-        connectToESP32()
+        startAsForeground("Smart Cane ready — tap Connect")
+        // Do NOT auto-connect here; wait for onStartCommand to provide IP
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
