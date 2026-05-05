@@ -130,9 +130,13 @@ class CaneSosService : Service() {
         val url = "ws://$ip:81"
         Log.d(TAG, "Connecting WebSocket: $url")
 
+        LocalBroadcastManager.getInstance(this@CaneSosService).sendBroadcast(
+            Intent(ACTION_CONNECTION_STATUS).putExtra(EXTRA_STATUS, "connecting")
+        )
+
         okClient = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(30,    TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.SECONDS)   // 0 = no timeout for persistent WebSocket
             .retryOnConnectionFailure(false)
             .build()
 

@@ -103,7 +103,12 @@ class PhoneDashboardActivity : AppCompatActivity() {
         override fun onReceive(context: Context, intent: Intent) {
             val status = intent.getStringExtra(CaneSosService.EXTRA_STATUS) ?: return
             runOnUiThread {
-                tvBleStatus.text = "WiFi: ${status.uppercase()}"
+                tvBleStatus.text = when (status) {
+                    "connected"    -> "WiFi: CONNECTED"
+                    "disconnected" -> "WiFi: DISCONNECTED"
+                    "connecting"   -> "WiFi: CONNECTING..."
+                    else           -> "WiFi: $status"
+                }
                 tvBleStatus.setTextColor(when (status) {
                     "connected"    -> Color.parseColor("#4CAF50")
                     "disconnected" -> Color.parseColor("#F44336")
@@ -128,8 +133,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
         buildUI()
         registerReceivers()
 
-        if (allPermissionsGranted()) startCaneService()
-        else permLauncher.launch(allPermissions)
+        if (!allPermissionsGranted()) permLauncher.launch(allPermissions)
     }
 
     override fun onDestroy() {
@@ -177,9 +181,6 @@ class PhoneDashboardActivity : AppCompatActivity() {
         val distDrop = parts[1].trim().toIntOrNull() ?: 0
         val fall     = parts[2].trim().toIntOrNull() ?: 0
         val light    = parts[3].trim().toIntOrNull() ?: 0
-
-        tvBleStatus.text = "WiFi: Connected"
-        tvBleStatus.setTextColor(Color.parseColor("#00C853"))
 
         tvDistFwd.text   = "Forward: ${mmReadable(distFwd)}"
         tvDistDrop.text  = "Drop/Step: ${mmReadable(distDrop)}"
@@ -341,7 +342,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
         root.addView(applyBtn)
 
         // --- WiFi status ---
-        tvBleStatus = valueCard { text = "WiFi: Connecting..." }
+        tvBleStatus = valueCard { text = "WiFi: Not connected" }
         root.addView(heading("Connection", "🔗"))
         root.addView(tvBleStatus)
 
