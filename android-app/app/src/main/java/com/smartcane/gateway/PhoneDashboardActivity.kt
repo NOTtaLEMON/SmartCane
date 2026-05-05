@@ -47,9 +47,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import android.os.Handler
+import android.os.Looper
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicReference
 
 class PhoneDashboardActivity : AppCompatActivity() {
 
@@ -67,6 +70,14 @@ class PhoneDashboardActivity : AppCompatActivity() {
     private lateinit var logContainer:   LinearLayout
 
     private var lastAlertAt = 0L
+    private val latestPacket = AtomicReference<String?>(null)
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private val renderRunnable = object : Runnable {
+        override fun run() {
+            latestPacket.getAndSet(null)?.let { updateSensorUI(it) }
+            uiHandler.postDelayed(this, 50)
+        }
+    }
 
     private val toneGen by lazy {
         ToneGenerator(AudioManager.STREAM_ALARM, 80)
@@ -97,7 +108,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
     private val sensorReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val packet = intent.getStringExtra(CaneSosService.EXTRA_PACKET) ?: return
-            runOnUiThread { updateSensorUI(packet) }
+            latestPacket.set(packet)  // always keep only the freshest packet
         }
     }
 
@@ -134,12 +145,14 @@ class PhoneDashboardActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         buildUI()
         registerReceivers()
+        uiHandler.postDelayed(renderRunnable, 50)
 
         if (!allPermissionsGranted()) permLauncher.launch(allPermissions)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        uiHandler.removeCallbacks(renderRunnable)
         LocalBroadcastManager.getInstance(this).unregisterReceiver(sensorReceiver)
         LocalBroadcastManager.getInstance(this).unregisterReceiver(visionReceiver)
         LocalBroadcastManager.getInstance(this).unregisterReceiver(connectionReceiver)
@@ -187,9 +200,9 @@ class PhoneDashboardActivity : AppCompatActivity() {
         val fall    = parts[2].trim().toIntOrNull() ?: 0
         val light   = parts[3].trim().toIntOrNull() ?: 0
 
-        tvDistFwd.text    = "Forward: $lidarCm cm"
-        tvDistDrop.text   = "Drop/Step: $tofCm cm"
-        tvLight.text      = "Light: ${luxLabel(light)}"
+        tvDistFwd.text    = "FORWARD\n$lidarCm cm"
+        tvDistDrop.text   = "DROP / STEP\n$tofCm cm"
+        tvLight.text      = "AMBIENT LIGHT:  ${luxLabel(light)}"
         tvLastUpdate.text = "Last packet: ${timeNow()}"
 
         val zone = zoneLabelCm(lidarCm)
@@ -286,58 +299,101 @@ class PhoneDashboardActivity : AppCompatActivity() {
     //  Programmatic UI
     // -----------------------------------------------------------------------
     private fun buildUI() {
+        val BG       = Color.parseColor("#0A0E14")
+        val CARD_BG  = Color.parseColor("#131920")
+        val ACCENT   = Color.parseColor("#3FB950")
+        val TEXT_PRI = Color.parseColor("#E6EDF3")
+        val TEXT_SEC = Color.parseColor("#7D8590")
+        val DIVIDER  = Color.parseColor("#21262D")
+
+        fun roundedBg(color: Int, radius: Float = 16f) =
+            android.graphics.drawable.GradientDrawable().apply {
+                setColor(color); cornerRadius = radius
+            }
+
         val scroll = ScrollView(this)
         val root   = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(32, 48, 32, 32)
-            setBackgroundColor(Color.parseColor("#0D1117"))  // GitHub dark theme
+            setPadding(28, 44, 28, 32)
+            setBackgroundColor(BG)
         }
 
         fun heading(text: String, emoji: String = "") = TextView(this).apply {
-            this.text  = if (emoji.isNotEmpty()) "$emoji $text" else text
-            textSize   = 16f
+            this.text  = if (emoji.isNotEmpty()) "$emoji  $text" else text
+            textSize   = 11f
             typeface   = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#C9D1D9"))  // GitHub light text
-            setPadding(0, 24, 0, 8)
+            setTextColor(TEXT_SEC)
+            letterSpacing = 0.12f
+            setPadding(4, 28, 0, 6)
         }
 
         fun valueCard(init: TextView.() -> Unit) = TextView(this).apply {
-            textSize  = 18f
-            setTextColor(Color.parseColor("#F0F6FC"))  // GitHub white text
-            setPadding(20, 16, 20, 16)
-            setBackgroundColor(Color.parseColor("#161B22"))  // GitHub card color
-            elevation = 4f  // Add shadow
+            textSize  = 17f
+            setTextColor(TEXT_PRI)
+            setPadding(20, 18, 20, 18)
+            background = roundedBg(CARD_BG)
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT)
+            lp.setMargins(0, 0, 0, 6)
+            layoutParams = lp
             init()
         }
 
         // --- Title ---
         root.addView(TextView(this).apply {
-            text      = "🦯 Smart Cane v2.0"
-            textSize  = 26f
+            text      = "🦯 Smart Cane"
+            textSize  = 24f
             typeface  = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#3FB950"))  // Green
+            setTextColor(ACCENT)
             gravity   = Gravity.CENTER_HORIZONTAL
-            setPadding(0, 0, 0, 16)
+            setPadding(0, 4, 0, 4)
+        })
+        root.addView(TextView(this).apply {
+            text     = "Live Sensor Dashboard"
+            textSize = 12f
+            setTextColor(TEXT_SEC)
+            gravity  = Gravity.CENTER_HORIZONTAL
+            setPadding(0, 0, 0, 20)
         })
 
-        // --- WiFi IP input ---
-        val prefs   = getSharedPreferences(CaneSosService.PREF_NAME, MODE_PRIVATE)
+        // --- IP row: input + button side by side ---
+        val prefs  = getSharedPreferences(CaneSosService.PREF_NAME, MODE_PRIVATE)
+        val ipRow  = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background  = roundedBg(CARD_BG)
+            setPadding(4, 4, 4, 4)
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT)
+            lp.setMargins(0, 8, 0, 12)
+            layoutParams = lp
+        }
         val ipInput = android.widget.EditText(this).apply {
             setText(prefs.getString(CaneSosService.PREF_ESP32_IP, CaneSosService.DEFAULT_IP))
-            hint        = "ESP32 IP (e.g. 192.168.1.100)"
-            inputType   = android.text.InputType.TYPE_CLASS_TEXT
-            setTextColor(Color.parseColor("#F0F6FC"))
-            setHintTextColor(Color.parseColor("#8B949E"))
-            setBackgroundColor(Color.parseColor("#21262D"))
-            setPadding(20, 16, 20, 16)
-            textSize = 16f
+            hint      = "ESP32 IP address"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            setTextColor(TEXT_PRI)
+            setHintTextColor(TEXT_SEC)
+            background = null
+            setPadding(20, 16, 12, 16)
+            textSize = 15f
+            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            layoutParams = lp
         }
         val applyBtn = Button(this).apply {
-            text = "🔗 Connect"
-            setBackgroundColor(Color.parseColor("#238636"))  // GitHub green
+            text      = "CONNECT"
+            background = roundedBg(Color.parseColor("#238636"), 12f)
             setTextColor(Color.WHITE)
-            textSize = 16f
-            setPadding(32, 16, 32, 16)
+            textSize  = 13f
+            typeface  = Typeface.DEFAULT_BOLD
+            setPadding(28, 0, 28, 0)
+            stateListAnimator = null
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.MATCH_PARENT)
+            lp.setMargins(8, 8, 8, 8)
+            layoutParams = lp
             setOnClickListener {
                 val ip = ipInput.text.toString().trim()
                 if (ip.isNotEmpty()) {
@@ -347,9 +403,10 @@ class PhoneDashboardActivity : AppCompatActivity() {
                 startCaneService()
             }
         }
-        root.addView(heading("ESP32 IP Address", "📡"))
-        root.addView(ipInput)
-        root.addView(applyBtn)
+        ipRow.addView(ipInput)
+        ipRow.addView(applyBtn)
+        root.addView(heading("CONNECTION", ""))
+        root.addView(ipRow)
 
         // --- WiFi status ---
         tvBleStatus = valueCard { text = "WiFi: Not connected" }
@@ -361,64 +418,94 @@ class PhoneDashboardActivity : AppCompatActivity() {
             text    = "Fall: None"
             setTextColor(Color.parseColor("#8B949E"))
         }
-        root.addView(heading("Fall Detection", "🚨"))
+        root.addView(heading("FALL DETECTION", "🚨"))
         root.addView(tvFall)
 
         // --- Zone ---
         tvZone = valueCard { text = "Zone: --" }
-        root.addView(heading("Obstacle Zone", "⚠️"))
+        root.addView(heading("OBSTACLE ZONE", "⚠️"))
         root.addView(tvZone)
 
-        // --- Distances + light ---
-        root.addView(heading("Sensor Readings", "📊"))
-        tvDistFwd  = valueCard { text = "Forward: --" };  root.addView(tvDistFwd)
-        tvDistDrop = valueCard { text = "Drop/Step: --" }; root.addView(tvDistDrop)
-        tvLight    = valueCard { text = "Light: --" };    root.addView(tvLight)
+        // --- Distances + light in a 2-col grid ---
+        root.addView(heading("SENSORS", "📡"))
+        fun sensorRow(left: TextView, right: TextView) = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT)
+            lp.setMargins(0, 0, 0, 6)
+            layoutParams = lp
+            val half = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+            half.setMargins(0, 0, 6, 0)
+            left.layoutParams = half
+            val half2 = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+            right.layoutParams = half2
+            addView(left); addView(right)
+        }
+        tvDistFwd  = valueCard { text = "Forward\n--" }
+        tvDistDrop = valueCard { text = "Drop/Step\n--" }
+        tvLight    = valueCard { text = "Light\n--" }
+        root.addView(sensorRow(tvDistFwd, tvDistDrop))
+        root.addView(tvLight)
 
         // --- Vision ---
         tvVision = valueCard { text = "Vision: inactive" }
-        root.addView(heading("Object Detection", "👁️"))
+        root.addView(heading("OBJECT DETECTION", "👁️"))
         root.addView(tvVision)
 
         // --- Last update ---
         tvLastUpdate = TextView(this).apply {
             text = "No data yet"
-            textSize = 14f
-            setTextColor(Color.parseColor("#8B949E"))
-            setPadding(0, 16, 0, 8)
+            textSize = 12f
+            setTextColor(TEXT_SEC)
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(0, 12, 0, 4)
         }
         root.addView(tvLastUpdate)
 
         // --- Buttons ---
-        root.addView(heading("Actions", "🎮"))
-        val btnRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        root.addView(heading("ACTIONS", ""))
+        val btnRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT)
+            lp.setMargins(0, 4, 0, 0)
+            layoutParams = lp
+        }
 
         fun actionBtn(label: String, color: String, onClick: () -> Unit) = Button(this).apply {
             text = label
-            setBackgroundColor(Color.parseColor(color))
+            background = roundedBg(Color.parseColor(color), 12f)
             setTextColor(Color.WHITE)
-            textSize = 14f
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            stateListAnimator = null
             val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            lp.setMargins(8, 0, 8, 0)
+            lp.setMargins(0, 0, 8, 0)
             layoutParams = lp
-            setPadding(16, 12, 16, 12)
+            setPadding(8, 24, 8, 24)
             setOnClickListener { onClick() }
         }
 
-        btnRow.addView(actionBtn("👁️ VISION", "#8957E5") {
+        btnRow.addView(actionBtn("👁️ VISION", "#6E40C9") {
             startActivity(Intent(this, CaneVisionActivity::class.java))
         })
-        btnRow.addView(actionBtn("🧭 NAVIGATE", "#238636") {
+        btnRow.addView(actionBtn("🧭 NAVIGATE", "#1A7F37") {
             startActivity(Intent(this, NavigationActivity::class.java))
         })
-        btnRow.addView(actionBtn("🚨 SOS CONTACTS", "#DA3633") {
+        btnRow.addView(actionBtn("🚨 SOS", "#B91C1C") {
             startActivity(Intent(this, SosContactsActivity::class.java))
         })
         root.addView(btnRow)
 
         // --- Log ---
-        root.addView(heading("Event Log", "📝"))
-        logContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(heading("EVENT LOG", "📋"))
+        logContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = roundedBg(CARD_BG)
+            setPadding(16, 12, 16, 12)
+        }
         root.addView(logContainer)
 
         scroll.addView(root)

@@ -64,6 +64,8 @@ WebSocketsServer webSocket(WEBSOCKET_PORT);
 unsigned long lastTick = 0;
 unsigned long lastIPDisplay = 0;
 unsigned long lastWifiRetry = 0;
+unsigned long lastBuzzerOff = 0;
+bool buzzerOn = false;
 bool wifiConnected = false;
 int connectedClients = 0;
 String espIP = "";
@@ -286,38 +288,33 @@ void loop() {
   // ---- LED Feedback (on when dark) ----
   digitalWrite(LED_PIN, isDark ? HIGH : LOW);
 
-  // ---- Buzzer Feedback (distance alert) ----
+  // ---- Buzzer Feedback (non-blocking, distance alert) ----
   if (distFwd > 0 && distFwd < 100) {
-    // Very close -- fast pulse
-    digitalWrite(BUZZER_PIN, HIGH);
-    delayMicroseconds(100000);
-    digitalWrite(BUZZER_PIN, LOW);
+    if (!buzzerOn) { digitalWrite(BUZZER_PIN, HIGH); buzzerOn = true; lastBuzzerOff = millis() + 80; }
   } else if (distFwd > 0 && distFwd < 300) {
-    // Approaching -- slower pulse
-    digitalWrite(BUZZER_PIN, HIGH);
-    delayMicroseconds(300000);
-    digitalWrite(BUZZER_PIN, LOW);
+    if (!buzzerOn) { digitalWrite(BUZZER_PIN, HIGH); buzzerOn = true; lastBuzzerOff = millis() + 150; }
   } else {
-    digitalWrite(BUZZER_PIN, LOW);
+    digitalWrite(BUZZER_PIN, LOW); buzzerOn = false;
+  }
+  if (buzzerOn && millis() >= lastBuzzerOff) {
+    digitalWrite(BUZZER_PIN, LOW); buzzerOn = false;
   }
 
-  // ---- Update LCD Display ----
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  
-  if (measure.RangeStatus != 4) {
-    lcd.print("D:");
-    lcd.print(distFwd);
-    lcd.print("mm");
-  } else {
-    lcd.print("Out of range");
+  // ---- Update LCD Display (every 500ms, avoid blocking I2C on every loop) ----
+  static unsigned long lastLcd = 0;
+  if (millis() - lastLcd >= 500) {
+    lastLcd = millis();
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    if (measure.RangeStatus != 4) {
+      lcd.print("D:"); lcd.print(distFwd); lcd.print("mm");
+    } else {
+      lcd.print("Out of range");
+    }
+    lcd.setCursor(0, 1);
+    lcd.print("L:"); lcd.print(ldrValue);
+    lcd.print(" W:"); lcd.print(wifiConnected ? "ON" : "OFF");
   }
-  
-  lcd.setCursor(0, 1);
-  lcd.print("L:");
-  lcd.print(ldrValue);
-  lcd.print(" W:");
-  lcd.print(wifiConnected ? "ON" : "OFF");
 
   // ---- Prepare sensor packet (format: dist_fwd,dist_drop,fall_flag,light_val) ----
   char buf[64];
