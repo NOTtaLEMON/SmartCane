@@ -95,26 +95,28 @@ class PhoneDashboardActivity : AppCompatActivity() {
     private val sensorReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val packet = intent.getStringExtra(CaneSosService.EXTRA_PACKET) ?: return
-            updateSensorUI(packet)
+            runOnUiThread { updateSensorUI(packet) }
         }
     }
 
     private val connectionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val status = intent.getStringExtra(CaneSosService.EXTRA_STATUS) ?: return
-            tvBleStatus.text = "WiFi: ${status.uppercase()}"
-            tvBleStatus.setTextColor(when (status) {
-                "connected" -> Color.parseColor("#4CAF50")
-                "disconnected" -> Color.parseColor("#F44336")
-                else -> Color.parseColor("#FF9800")
-            })
+            runOnUiThread {
+                tvBleStatus.text = "WiFi: ${status.uppercase()}"
+                tvBleStatus.setTextColor(when (status) {
+                    "connected"    -> Color.parseColor("#4CAF50")
+                    "disconnected" -> Color.parseColor("#F44336")
+                    else           -> Color.parseColor("#FF9800")
+                })
+            }
         }
     }
 
     private val visionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val detections = intent.getStringExtra(CaneVisionActivity.EXTRA_DETECTIONS) ?: return
-            tvVision.text = "Detected: $detections"
+            runOnUiThread { tvVision.text = "Detected: $detections" }
         }
     }
 
