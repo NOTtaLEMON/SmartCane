@@ -301,10 +301,10 @@ class PhoneDashboardActivity : AppCompatActivity() {
 
         // --- Title ---
         root.addView(TextView(this).apply {
-            text      = "🎯 Smart Cane Dashboard"
-            textSize  = 24f
+            text      = "🦯 Smart Cane v2.0"
+            textSize  = 26f
             typeface  = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#58A6FF"))  // GitHub blue
+            setTextColor(Color.parseColor("#3FB950"))  // Green
             gravity   = Gravity.CENTER_HORIZONTAL
             setPadding(0, 0, 0, 16)
         })
