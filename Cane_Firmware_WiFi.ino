@@ -148,7 +148,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  Serial.println("\n\n=== SMART CANE FIRMWARE (WiFi) ===\n");
+  Serial.println("\n\n=== SMART CANE FIRMWARE (WiFi) ===");
+  Serial.println("=== VERSION: v2.1 - NON-BLOCKING BUILD ===");
+  Serial.println("=== If you see this, you have the latest firmware ===\n");
 
   // Initialize I2C
   Wire.begin(21, 22);
