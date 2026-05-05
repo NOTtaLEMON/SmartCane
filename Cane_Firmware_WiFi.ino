@@ -54,7 +54,7 @@
 
 // ========== Tuning ==========
 #define LDR_DARK_THRESHOLD  700
-#define LOOP_MS             100
+#define LOOP_MS             50
 
 // ========== Objects ==========
 LiquidCrystal_I2C lcd(0x27, 16, 2);

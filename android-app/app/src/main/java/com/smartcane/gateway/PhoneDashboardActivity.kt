@@ -179,15 +179,16 @@ class PhoneDashboardActivity : AppCompatActivity() {
         val parts = raw.split(",")
         if (parts.size != 4) return
 
-        // parts[0] = VL53L0X ToF (mm)  → Drop/Step sensor
+        // parts[0] = VL53L0X ToF (mm → convert to cm) → Drop/Step sensor
         // parts[1] = TF-Luna LiDAR (cm) → Forward sensor
         val tofMm   = parts[0].trim().toIntOrNull() ?: 0
+        val tofCm   = tofMm / 10
         val lidarCm = parts[1].trim().toIntOrNull() ?: 0
         val fall    = parts[2].trim().toIntOrNull() ?: 0
         val light   = parts[3].trim().toIntOrNull() ?: 0
 
-        tvDistFwd.text    = "Forward: ${cmReadable(lidarCm)}"
-        tvDistDrop.text   = "Drop/Step: ${mmReadable(tofMm)}"
+        tvDistFwd.text    = "Forward: $lidarCm cm"
+        tvDistDrop.text   = "Drop/Step: $tofCm cm"
         tvLight.text      = "Light: ${luxLabel(light)}"
         tvLastUpdate.text = "Last packet: ${timeNow()}"
 
@@ -210,14 +211,14 @@ class PhoneDashboardActivity : AppCompatActivity() {
         val now = System.currentTimeMillis()
         if (now - lastAlertAt > 2000) {
             when {
-                tofMm > 500 -> {  // ToF > 50 cm → drop/step alert
-                    addLog("⚠ Drop/Step: ${mmReadable(tofMm)}")
+                tofCm > 50 -> {  // ToF > 50 cm → drop/step alert
+                    addLog("⚠ Drop/Step: $tofCm cm")
                     runCatching { toneGen.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 1000) }
                     vibrate(longArrayOf(0, 500))
                     lastAlertAt = now
                 }
                 lidarCm in 1..49 -> {  // LiDAR < 50 cm → forward obstacle alert
-                    addLog("⚠ Obstacle ahead: ${cmReadable(lidarCm)}")
+                    addLog("⚠ Obstacle ahead: $lidarCm cm")
                     runCatching { toneGen.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 1000) }
                     lastAlertAt = now
                 }
@@ -255,9 +256,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
     // -----------------------------------------------------------------------
     //  Pure functions (mirrors laptop dashboard logic)
     // -----------------------------------------------------------------------
-    private fun mmReadable(mm: Int) = if (mm >= 1000) "${"%.2f".format(mm / 1000.0)} m" else "$mm mm"
-
-    private fun cmReadable(cm: Int) = if (cm >= 100) "${"%.2f".format(cm / 100.0)} m" else "$cm cm"
+    private fun cmReadable(cm: Int) = "$cm cm"
 
     private fun zoneLabelCm(cm: Int) = when {
         cm in 1..29  -> "CRITICAL"
