@@ -1,3 +1,5 @@
+// === VERSION: v2.1 - NON-BLOCKING BUILD ===
+// === If you see this, you have the latest firmware ===
 /*
  * ============================================================================
  *  SMART CANE CLIP-ON  |  ESP32 FIRMWARE (WiFi Version)
