@@ -69,8 +69,11 @@ class CaneSosService : Service() {
         const val DEFAULT_IP   = "192.168.1.100"
 
         // LocalBroadcast action + extras — received by PhoneDashboardActivity
-        const val ACTION_SENSOR_DATA = "com.smartcane.gateway.SENSOR_DATA"
-        const val EXTRA_PACKET       = "packet"
+        const val ACTION_SENSOR_DATA  = "com.smartcane.gateway.SENSOR_DATA"
+        const val EXTRA_PACKET        = "packet"
+        const val ACTION_WIFI_STATUS  = "com.smartcane.gateway.WIFI_STATUS"
+        const val EXTRA_WIFI_CONNECTED = "connected"
+        const val EXTRA_WIFI_IP        = "ip"
 
         // Connection status broadcast
         const val ACTION_CONNECTION_STATUS = "com.smartcane.gateway.CONNECTION_STATUS"
