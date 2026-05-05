@@ -327,7 +327,14 @@ class PhoneDashboardActivity : AppCompatActivity() {
             setTextColor(Color.WHITE)
             textSize = 16f
             setPadding(32, 16, 32, 16)
-            // ... rest same
+            setOnClickListener {
+                val ip = ipInput.text.toString().trim()
+                if (ip.isNotEmpty()) {
+                    getSharedPreferences(CaneSosService.PREF_NAME, MODE_PRIVATE)
+                        .edit().putString(CaneSosService.PREF_ESP32_IP, ip).apply()
+                }
+                startCaneService()
+            }
         }
         root.addView(heading("ESP32 IP Address", "📡"))
         root.addView(ipInput)
