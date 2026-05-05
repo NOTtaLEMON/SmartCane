@@ -66,6 +66,8 @@ class PhoneDashboardActivity : AppCompatActivity() {
     private lateinit var tvLastUpdate:   TextView
     private lateinit var logContainer:   LinearLayout
 
+    private var lastAlertAt = 0L
+
     private val toneGen by lazy {
         ToneGenerator(AudioManager.STREAM_ALARM, 80)
     }
@@ -177,34 +179,49 @@ class PhoneDashboardActivity : AppCompatActivity() {
         val parts = raw.split(",")
         if (parts.size != 4) return
 
-        val distFwd  = parts[0].trim().toIntOrNull() ?: 0
-        val distDrop = parts[1].trim().toIntOrNull() ?: 0
-        val fall     = parts[2].trim().toIntOrNull() ?: 0
-        val light    = parts[3].trim().toIntOrNull() ?: 0
+        // parts[0] = VL53L0X ToF (mm)  → Drop/Step sensor
+        // parts[1] = TF-Luna LiDAR (cm) → Forward sensor
+        val tofMm   = parts[0].trim().toIntOrNull() ?: 0
+        val lidarCm = parts[1].trim().toIntOrNull() ?: 0
+        val fall    = parts[2].trim().toIntOrNull() ?: 0
+        val light   = parts[3].trim().toIntOrNull() ?: 0
 
-        tvDistFwd.text   = "Forward: ${mmReadable(distFwd)}"
-        tvDistDrop.text  = "Drop/Step: ${mmReadable(distDrop)}"
-        tvLight.text     = "Light: ${luxLabel(light)}"
+        tvDistFwd.text    = "Forward: ${cmReadable(lidarCm)}"
+        tvDistDrop.text   = "Drop/Step: ${mmReadable(tofMm)}"
+        tvLight.text      = "Light: ${luxLabel(light)}"
         tvLastUpdate.text = "Last packet: ${timeNow()}"
 
-        val zone = zoneLabel(distFwd)
+        val zone = zoneLabelCm(lidarCm)
         tvZone.text = "Zone: $zone"
         tvZone.setBackgroundColor(zoneColor(zone))
 
+        // Fall: UI update only — no sound/vibration
         if (fall == 1) {
             tvFall.text = "⚠ FALL DETECTED"
             tvFall.setBackgroundColor(Color.RED)
             tvFall.setTextColor(Color.WHITE)
-            buzzAlert()
         } else {
             tvFall.text = "Fall: None"
             tvFall.setBackgroundColor(Color.TRANSPARENT)
             tvFall.setTextColor(Color.DKGRAY)
         }
 
-        if (distFwd < 300) {
-            addLog("CRITICAL obstacle at ${mmReadable(distFwd)}")
-            buzzShort()
+        // Alerts — throttled to once per 2 seconds to avoid spam
+        val now = System.currentTimeMillis()
+        if (now - lastAlertAt > 2000) {
+            when {
+                tofMm > 500 -> {  // ToF > 50 cm → drop/step alert
+                    addLog("⚠ Drop/Step: ${mmReadable(tofMm)}")
+                    runCatching { toneGen.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 1000) }
+                    vibrate(longArrayOf(0, 500))
+                    lastAlertAt = now
+                }
+                lidarCm in 1..49 -> {  // LiDAR < 50 cm → forward obstacle alert
+                    addLog("⚠ Obstacle ahead: ${cmReadable(lidarCm)}")
+                    runCatching { toneGen.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 1000) }
+                    lastAlertAt = now
+                }
+            }
         }
     }
 
@@ -219,14 +236,6 @@ class PhoneDashboardActivity : AppCompatActivity() {
         if (logContainer.childCount > 50) logContainer.removeViewAt(logContainer.childCount - 1)
     }
 
-    private fun buzzAlert() {
-        runCatching { toneGen.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 1500) }
-        vibrate(longArrayOf(0, 300, 100, 300, 100, 500))
-    }
-
-    private fun buzzShort() {
-        vibrate(longArrayOf(0, 80))
-    }
 
     private fun vibrate(pattern: LongArray) {
         val v = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -248,11 +257,13 @@ class PhoneDashboardActivity : AppCompatActivity() {
     // -----------------------------------------------------------------------
     private fun mmReadable(mm: Int) = if (mm >= 1000) "${"%.2f".format(mm / 1000.0)} m" else "$mm mm"
 
-    private fun zoneLabel(mm: Int) = when {
-        mm < 300  -> "CRITICAL"
-        mm < 800  -> "WARNING"
-        mm < 1500 -> "CAUTION"
-        else      -> "CLEAR"
+    private fun cmReadable(cm: Int) = if (cm >= 100) "${"%.2f".format(cm / 100.0)} m" else "$cm cm"
+
+    private fun zoneLabelCm(cm: Int) = when {
+        cm in 1..29  -> "CRITICAL"
+        cm in 30..79 -> "WARNING"
+        cm in 80..149 -> "CAUTION"
+        else         -> "CLEAR"
     }
 
     private fun zoneColor(zone: String) = when (zone) {
