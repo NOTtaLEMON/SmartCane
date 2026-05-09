@@ -43,8 +43,8 @@
 #define FALL_THRESHOLD 20000  // Acceleration threshold for fall detection
 
 // ========== WiFi Configuration ==========
-#define WIFI_SSID     "YOUR_SSID"        // *** ARAVIND: replace with actual SSID ***
-#define WIFI_PASSWORD "YOUR_PASSWORD"    // *** ARAVIND: replace with actual password ***
+#define WIFI_SSID     "ARAVIND"        // *** ARAVIND: replace with actual SSID ***
+#define WIFI_PASSWORD "Akila123"    // *** ARAVIND: replace with actual password ***
 #define WEBSOCKET_PORT 81
 
 // ========== Pin Map ==========
