@@ -28,6 +28,9 @@
 package com.smartcane.gateway
 
 import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -39,7 +42,9 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.YuvImage
+import android.os.Build
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.view.Surface
 import android.view.SurfaceHolder
@@ -55,9 +60,12 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import java.io.ByteArrayOutputStream
+import java.util.Locale
 import java.util.concurrent.Executors
 
 class CaneVisionActivity : AppCompatActivity() {
@@ -66,6 +74,8 @@ class CaneVisionActivity : AppCompatActivity() {
         private const val TAG = "CaneVision"
         const val ACTION_VISION_RESULT = "com.smartcane.gateway.VISION_RESULT"
         const val EXTRA_DETECTIONS     = "detections"   // String — comma-separated labels
+        private const val NOTIF_CHANNEL_ID  = "vision_hazards"
+        private const val ALERT_COOLDOWN_MS = 3000L  // 3 s between alerts per label
     }
 
     private lateinit var previewView: PreviewView
@@ -74,6 +84,8 @@ class CaneVisionActivity : AppCompatActivity() {
 
     private val inferenceExecutor = Executors.newSingleThreadExecutor()
     private var detector: TfliteObjectDetector? = null
+    private val lastAlertMs = mutableMapOf<String, Long>()
+    private lateinit var tts: TextToSpeech
 
     // -----------------------------------------------------------------------
     //  Permission request
@@ -138,6 +150,19 @@ class CaneVisionActivity : AppCompatActivity() {
         }
         setContentView(root)
 
+        // Notification channel (API 26+)
+        val nm = getSystemService(NotificationManager::class.java)
+        if (nm.getNotificationChannel(NOTIF_CHANNEL_ID) == null) {
+            nm.createNotificationChannel(NotificationChannel(
+                NOTIF_CHANNEL_ID, "Hazard Alerts", NotificationManager.IMPORTANCE_HIGH
+            ).apply { description = "Object detected by camera" })
+        }
+
+        // Text-to-Speech engine
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) tts.language = Locale.US
+        }
+
         // Load TFLite model if available
         runCatching {
             detector = TfliteObjectDetector(this)
@@ -163,6 +188,8 @@ class CaneVisionActivity : AppCompatActivity() {
         super.onDestroy()
         inferenceExecutor.shutdown()
         detector?.close()
+        tts.stop()
+        tts.shutdown()
     }
 
     // -----------------------------------------------------------------------
@@ -237,7 +264,39 @@ class CaneVisionActivity : AppCompatActivity() {
             LocalBroadcastManager.getInstance(this).sendBroadcast(
                 Intent(ACTION_VISION_RESULT).putExtra(EXTRA_DETECTIONS, summary)
             )
+            fireHazardAlert(results.first())
         }
+    }
+
+    private fun fireHazardAlert(det: DetectionResult) {
+        val now = System.currentTimeMillis()
+        if (now - (lastAlertMs[det.label] ?: 0L) < ALERT_COOLDOWN_MS) return
+        lastAlertMs[det.label] = now
+
+        // --- Notification (shows for ~1 s then auto-dismisses) ---
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) {
+
+            val tapIntent = PendingIntent.getActivity(
+                this, 0,
+                Intent(this, CaneVisionActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_SINGLE_TOP },
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            val notif = NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                .setContentTitle("${det.label.replaceFirstChar { it.uppercase() }} detected")
+                .setContentText("${(det.confidence * 100).toInt()}% confidence")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setTimeoutAfter(1000L)   // auto-dismiss after 1 second
+                .setContentIntent(tapIntent)
+                .setAutoCancel(true)
+                .build()
+            NotificationManagerCompat.from(this).notify(det.label.hashCode(), notif)
+        }
+
+        // --- TTS voice alert ---
+        tts.speak("${det.label} detected", TextToSpeech.QUEUE_FLUSH, null, det.label)
     }
 
     // -----------------------------------------------------------------------
