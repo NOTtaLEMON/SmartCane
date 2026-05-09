@@ -355,6 +355,13 @@ class PhoneDashboardActivity : AppCompatActivity() {
             textSize = 12f
             setTextColor(TEXT_SEC)
             gravity  = Gravity.CENTER_HORIZONTAL
+            setPadding(0, 0, 0, 4)
+        })
+        root.addView(TextView(this).apply {
+            text     = "v1.1-wifi-tts"
+            textSize = 10f
+            setTextColor(Color.parseColor("#3FB950"))
+            gravity  = Gravity.CENTER_HORIZONTAL
             setPadding(0, 0, 0, 20)
         })
 

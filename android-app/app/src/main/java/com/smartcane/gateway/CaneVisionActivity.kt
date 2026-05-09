@@ -85,7 +85,8 @@ class CaneVisionActivity : AppCompatActivity() {
     private val inferenceExecutor = Executors.newSingleThreadExecutor()
     private var detector: TfliteObjectDetector? = null
     private val lastAlertMs = mutableMapOf<String, Long>()
-    private lateinit var tts: TextToSpeech
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
 
     // -----------------------------------------------------------------------
     //  Permission request
@@ -161,7 +162,10 @@ class CaneVisionActivity : AppCompatActivity() {
 
         // Text-to-Speech engine
         tts = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) tts.language = Locale.US
+            if (status == TextToSpeech.SUCCESS) {
+                tts?.language = Locale.US
+                ttsReady = true
+            }
         }
 
         // Load TFLite model if available
@@ -189,8 +193,8 @@ class CaneVisionActivity : AppCompatActivity() {
         super.onDestroy()
         inferenceExecutor.shutdown()
         detector?.close()
-        tts.stop()
-        tts.shutdown()
+        tts?.stop()
+        tts?.shutdown()
     }
 
     // -----------------------------------------------------------------------
@@ -274,7 +278,7 @@ class CaneVisionActivity : AppCompatActivity() {
         if (now - (lastAlertMs[det.label] ?: 0L) < ALERT_COOLDOWN_MS) return
         lastAlertMs[det.label] = now
         // TTS voice alert only
-        tts.speak("${det.label} detected", TextToSpeech.QUEUE_FLUSH, null, det.label)
+        if (ttsReady) tts?.speak("${det.label} detected", TextToSpeech.QUEUE_FLUSH, null, det.label)
     }
 
     // -----------------------------------------------------------------------
