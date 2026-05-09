@@ -56,7 +56,7 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
         )
         private const val INPUT_SIZE     = 320
         private const val CONF_THRESHOLD = 0.35f
-        private const val IOU_THRESHOLD  = 0.45f
+        private const val IOU_THRESHOLD  = 0.60f
         private const val NUM_COORDS     = 4
         private const val MASK_SIZE      = 160    // standard for YOLOv8-seg 320 input
 
