@@ -170,6 +170,9 @@ class CaneVisionActivity : AppCompatActivity() {
                 ttsReady = true
             } else {
                 Log.e(TAG, "TTS init failed with status $status — voice alerts disabled")
+                runOnUiThread {
+                    statusText.text = "⚠ Voice alerts unavailable (TTS engine not found). Install \"Speech Services by Google\" from Play Store."
+                }
             }
         }
 

@@ -115,10 +115,11 @@ class PhoneDashboardActivity : AppCompatActivity() {
     private val connectionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val status = intent.getStringExtra(CaneSosService.EXTRA_STATUS) ?: return
+            val error  = intent.getStringExtra(CaneSosService.EXTRA_ERROR)
             runOnUiThread {
                 tvBleStatus.text = when (status) {
                     "connected"    -> "WiFi: CONNECTED"
-                    "disconnected" -> "WiFi: DISCONNECTED"
+                    "disconnected" -> if (error != null) "WiFi: DISCONNECTED — $error" else "WiFi: DISCONNECTED"
                     "connecting"   -> "WiFi: CONNECTING..."
                     else           -> "WiFi: $status"
                 }
@@ -127,6 +128,9 @@ class PhoneDashboardActivity : AppCompatActivity() {
                     "disconnected" -> Color.parseColor("#F44336")
                     else           -> Color.parseColor("#FF9800")
                 })
+                if (status == "disconnected" && error != null) {
+                    addLog("WiFi error: $error")
+                }
             }
         }
     }
@@ -176,7 +180,14 @@ class PhoneDashboardActivity : AppCompatActivity() {
         val ip = getEsp32Ip()
         val intent = Intent(this, CaneSosService::class.java).putExtra("esp32_ip", ip)
         runCatching { ContextCompat.startForegroundService(this, intent) }
-            .onFailure { runCatching { startService(intent) } }
+            .onFailure { e ->
+                runCatching { startService(intent) }
+                    .onFailure { e2 ->
+                        addLog("ERROR: Could not start service — ${e2.message}")
+                        tvBleStatus.text = "ERROR: Service failed to start — ${e2.message}"
+                        tvBleStatus.setTextColor(Color.parseColor("#F44336"))
+                    }
+            }
         tvBleStatus.text = "WiFi: Connecting to $ip..."
     }
 

@@ -78,6 +78,7 @@ class CaneSosService : Service() {
         // Connection status broadcast
         const val ACTION_CONNECTION_STATUS = "com.smartcane.gateway.CONNECTION_STATUS"
         const val EXTRA_STATUS             = "status"
+        const val EXTRA_ERROR              = "error"
     }
 
     private var okClient: OkHttpClient? = null
@@ -183,10 +184,13 @@ class CaneSosService : Service() {
         }
 
         override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
-            Log.e(TAG, "WebSocket error: ${t.message}")
+            val msg = t.message ?: "Unknown error"
+            Log.e(TAG, "WebSocket error: $msg")
             updateNotification("WiFi disconnected — retrying in 5s...")
             LocalBroadcastManager.getInstance(this@CaneSosService).sendBroadcast(
-                Intent(ACTION_CONNECTION_STATUS).putExtra(EXTRA_STATUS, "disconnected")
+                Intent(ACTION_CONNECTION_STATUS)
+                    .putExtra(EXTRA_STATUS, "disconnected")
+                    .putExtra(EXTRA_ERROR, msg)
             )
             scheduleReconnect()
         }
