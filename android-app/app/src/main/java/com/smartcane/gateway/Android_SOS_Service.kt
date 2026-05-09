@@ -273,11 +273,13 @@ class CaneSosService : Service() {
             )
         }
         val notif = buildNotification(text)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        } else {
-            startForeground(NOTIF_ID, notif)
-        }
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+            } else {
+                startForeground(NOTIF_ID, notif)
+            }
+        }.onFailure { Log.w(TAG, "startForeground failed: ${it.message}") }
     }
 
     private fun updateNotification(text: String) {

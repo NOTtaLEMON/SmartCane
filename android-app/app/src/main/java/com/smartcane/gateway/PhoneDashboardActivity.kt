@@ -148,7 +148,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
         uiHandler.postDelayed(renderRunnable, 50)
 
         if (!allPermissionsGranted()) permLauncher.launch(allPermissions)
-        else startCaneService()
+        else window.decorView.post { startCaneService() }
     }
 
     override fun onDestroy() {
@@ -175,7 +175,8 @@ class PhoneDashboardActivity : AppCompatActivity() {
     private fun startCaneService() {
         val ip = getEsp32Ip()
         val intent = Intent(this, CaneSosService::class.java).putExtra("esp32_ip", ip)
-        ContextCompat.startForegroundService(this, intent)
+        runCatching { ContextCompat.startForegroundService(this, intent) }
+            .onFailure { runCatching { startService(intent) } }
         tvBleStatus.text = "WiFi: Connecting to $ip..."
     }
 
