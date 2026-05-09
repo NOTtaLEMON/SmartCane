@@ -75,7 +75,8 @@ class CaneVisionActivity : AppCompatActivity() {
         const val ACTION_VISION_RESULT = "com.smartcane.gateway.VISION_RESULT"
         const val EXTRA_DETECTIONS     = "detections"   // String — comma-separated labels
         private const val NOTIF_CHANNEL_ID  = "vision_hazards"
-        private const val ALERT_COOLDOWN_MS = 3000L  // 3 s between alerts per label
+        private const val ALERT_COOLDOWN_MS = 3000L  // 3 s between TTS alerts per label
+        private const val NOTIF_COOLDOWN_MS = 5000L  // 5 s between push notifications per label
     }
 
     private lateinit var previewView: PreviewView
@@ -85,6 +86,7 @@ class CaneVisionActivity : AppCompatActivity() {
     private val inferenceExecutor = Executors.newSingleThreadExecutor()
     private var detector: TfliteObjectDetector? = null
     private val lastAlertMs = mutableMapOf<String, Long>()
+    private val lastNotifMs = mutableMapOf<String, Long>()
     private var tts: TextToSpeech? = null
     private var ttsReady = false
 
@@ -119,10 +121,9 @@ class CaneVisionActivity : AppCompatActivity() {
         statusText = TextView(this).apply {
             text  = "Initialising vision..."
             setTextColor(Color.WHITE)
-            setBackgroundColor(Color.argb(200, 0, 0, 0))
-            textSize = 18f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setPadding(20, 12, 20, 12)
+            setBackgroundColor(Color.argb(160, 0, 0, 0))
+            textSize = 14f
+            setPadding(16, 8, 16, 8)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT
@@ -285,8 +286,33 @@ class CaneVisionActivity : AppCompatActivity() {
         val now = System.currentTimeMillis()
         if (now - (lastAlertMs[det.label] ?: 0L) < ALERT_COOLDOWN_MS) return
         lastAlertMs[det.label] = now
-        // TTS voice alert only
         if (ttsReady) tts?.speak("${det.label} detected", TextToSpeech.QUEUE_FLUSH, null, det.label)
+        sendHazardNotification(det)
+    }
+
+    private fun sendHazardNotification(det: DetectionResult) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) return
+        val now = System.currentTimeMillis()
+        if (now - (lastNotifMs[det.label] ?: 0L) < NOTIF_COOLDOWN_MS) return
+        lastNotifMs[det.label] = now
+        val tapIntent = android.app.PendingIntent.getActivity(
+            this, 0,
+            Intent(this, CaneVisionActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            },
+            android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val notif = androidx.core.app.NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle("Hazard: ${det.label}")
+            .setContentText("${det.label.replaceFirstChar { it.uppercase() }} detected (${(det.confidence * 100).toInt()}% confidence)")
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(tapIntent)
+            .setAutoCancel(true)
+            .build()
+        androidx.core.app.NotificationManagerCompat.from(this).notify(det.label.hashCode(), notif)
     }
 
     // -----------------------------------------------------------------------
