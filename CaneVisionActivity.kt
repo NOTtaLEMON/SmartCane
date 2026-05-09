@@ -28,6 +28,9 @@
 package com.smartcane.gateway
 
 import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -39,11 +42,14 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.YuvImage
+import android.os.Build
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
@@ -54,9 +60,12 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import java.io.ByteArrayOutputStream
+import java.util.Locale
 import java.util.concurrent.Executors
 
 class CaneVisionActivity : AppCompatActivity() {
@@ -65,6 +74,8 @@ class CaneVisionActivity : AppCompatActivity() {
         private const val TAG = "CaneVision"
         const val ACTION_VISION_RESULT = "com.smartcane.gateway.VISION_RESULT"
         const val EXTRA_DETECTIONS     = "detections"   // String — comma-separated labels
+        private const val NOTIF_CHANNEL_ID  = "vision_hazards"
+        private const val ALERT_COOLDOWN_MS = 3000L  // 3 s between alerts per label
     }
 
     private lateinit var previewView: PreviewView
@@ -73,6 +84,9 @@ class CaneVisionActivity : AppCompatActivity() {
 
     private val inferenceExecutor = Executors.newSingleThreadExecutor()
     private var detector: TfliteObjectDetector? = null
+    private val lastAlertMs = mutableMapOf<String, Long>()
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
 
     // -----------------------------------------------------------------------
     //  Permission request
@@ -105,29 +119,74 @@ class CaneVisionActivity : AppCompatActivity() {
         statusText = TextView(this).apply {
             text  = "Initialising vision..."
             setTextColor(Color.WHITE)
-            setBackgroundColor(Color.argb(160, 0, 0, 0))
-            textSize = 14f
-            setPadding(16, 8, 16, 8)
+            setBackgroundColor(Color.argb(200, 0, 0, 0))
+            textSize = 18f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setPadding(20, 12, 20, 12)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT
             )
         }
+        val dashboardBtn = Button(this).apply {
+            text = "Dashboard"
+            setBackgroundColor(Color.argb(200, 0, 123, 255))
+            setTextColor(Color.WHITE)
+            textSize = 16f
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = android.view.Gravity.BOTTOM or android.view.Gravity.END
+                setMargins(16, 16, 16, 16)
+            }
+            setOnClickListener {
+                startActivity(Intent(this@CaneVisionActivity, PhoneDashboardActivity::class.java))
+            }
+        }
         val root = FrameLayout(this).apply {
             addView(previewView)
             addView(overlayView)
             addView(statusText)
+            addView(dashboardBtn)
         }
         setContentView(root)
 
-        // Load TFLite model
+        // Notification channel (API 26+)
+        val nm = getSystemService(NotificationManager::class.java)
+        if (nm.getNotificationChannel(NOTIF_CHANNEL_ID) == null) {
+            nm.createNotificationChannel(NotificationChannel(
+                NOTIF_CHANNEL_ID, "Hazard Alerts", NotificationManager.IMPORTANCE_HIGH
+            ).apply { description = "Object detected by camera" })
+        }
+
+        // Text-to-Speech engine
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val result = tts?.setLanguage(Locale.US)
+                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    tts?.language = Locale.getDefault()
+                }
+                ttsReady = true
+            } else {
+                Log.e(TAG, "TTS init failed with status $status — voice alerts disabled")
+                runOnUiThread {
+                    statusText.text = "⚠ Voice alerts unavailable (TTS engine not found). Install \"Speech Services by Google\" from Play Store."
+                }
+            }
+        }
+
+        // Load TFLite model if available
         runCatching {
             detector = TfliteObjectDetector(this)
             Log.i(TAG, "TFLite model loaded")
+            statusText.text = "Vision active — model loaded"
         }.onFailure {
-            statusText.text = "ERROR: ${it.message}\nMake sure yolov8n_320_float16.tflite is in assets/"
+            statusText.text = "No YOLO TFLite model found in assets.\n" +
+                    "Place one of: yolov8n_seg_320_float16.tflite, yolov8s_seg_320_float16.tflite,\n" +
+                    "yolov8m_seg_320_float16.tflite, yolov8n_320_float16.tflite,\n" +
+                    "yolov8s_320_float16.tflite, yolov8m_320_float16.tflite"
             Log.e(TAG, "Model load failed", it)
-            return
         }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
@@ -142,6 +201,8 @@ class CaneVisionActivity : AppCompatActivity() {
         super.onDestroy()
         inferenceExecutor.shutdown()
         detector?.close()
+        tts?.stop()
+        tts?.shutdown()
     }
 
     // -----------------------------------------------------------------------
@@ -181,12 +242,21 @@ class CaneVisionActivity : AppCompatActivity() {
     // -----------------------------------------------------------------------
     private fun analyzeFrame(imageProxy: ImageProxy) {
         val bitmap = imageProxy.toBitmap()
-        imageProxy.close()
 
-        val det = detector ?: return
+        val det = detector
+        if (det == null) {
+            runOnUiThread {
+                statusText.text = "Camera active — no YOLO model loaded. Place a TFLite model in assets and restart."
+                overlayView.setResults(emptyList(), bitmap.width.toFloat(), bitmap.height.toFloat())
+            }
+            imageProxy.close()
+            return
+        }
+
         val results = runCatching { det.detect(bitmap) }.getOrElse {
             Log.e(TAG, "Inference failed", it); emptyList()
         }
+        imageProxy.close()
 
         // Update overlay on main thread
         runOnUiThread {
@@ -207,7 +277,16 @@ class CaneVisionActivity : AppCompatActivity() {
             LocalBroadcastManager.getInstance(this).sendBroadcast(
                 Intent(ACTION_VISION_RESULT).putExtra(EXTRA_DETECTIONS, summary)
             )
+            fireHazardAlert(results.first())
         }
+    }
+
+    private fun fireHazardAlert(det: DetectionResult) {
+        val now = System.currentTimeMillis()
+        if (now - (lastAlertMs[det.label] ?: 0L) < ALERT_COOLDOWN_MS) return
+        lastAlertMs[det.label] = now
+        // TTS voice alert only
+        if (ttsReady) tts?.speak("${det.label} detected", TextToSpeech.QUEUE_FLUSH, null, det.label)
     }
 
     // -----------------------------------------------------------------------
@@ -241,17 +320,17 @@ class DetectionOverlayView(context: android.content.Context) :
 
     private val boxPaint = Paint().apply {
         style       = Paint.Style.STROKE
-        strokeWidth = 4f
+        strokeWidth = 6f
         color       = Color.CYAN
     }
-    private val labelPaint = Paint().apply {
-        style    = Paint.Style.FILL
-        color    = Color.argb(200, 0, 0, 0)
-        textSize = 36f
+    private val labelBgPaint = Paint().apply {
+        style = Paint.Style.FILL
+        color = Color.argb(210, 0, 0, 0)
     }
     private val textPaint = Paint().apply {
         color    = Color.WHITE
-        textSize = 36f
+        textSize = 48f
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
     }
 
     fun setResults(list: List<DetectionResult>, bitmapW: Float, bitmapH: Float) {
@@ -263,19 +342,28 @@ class DetectionOverlayView(context: android.content.Context) :
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val scaleX = width  / srcW
-        val scaleY = height / srcH
+        if (srcW == 0f || srcH == 0f) return
+        // Coords are normalized [0,1] — scale directly to view dimensions
+        val scaleX = width.toFloat()
+        val scaleY = height.toFloat()
         for (det in results) {
             val box = RectF(
-                det.boundingBox.left   * srcW * scaleX,
-                det.boundingBox.top    * srcH * scaleY,
-                det.boundingBox.right  * srcW * scaleX,
-                det.boundingBox.bottom * srcH * scaleY
+                det.boundingBox.left   * scaleX,
+                det.boundingBox.top    * scaleY,
+                det.boundingBox.right  * scaleX,
+                det.boundingBox.bottom * scaleY
             )
+
+            det.mask?.let { canvas.drawBitmap(it, null, box, null) }
+
             canvas.drawRect(box, boxPaint)
-            val label = "${det.label} ${(det.confidence * 100).toInt()}%"
-            canvas.drawRect(box.left, box.top - 42f, box.left + labelPaint.measureText(label) + 8f, box.top, labelPaint)
-            canvas.drawText(label, box.left + 4f, box.top - 8f, textPaint)
+
+            val label = "${det.label}  ${(det.confidence * 100).toInt()}%"
+            val textW = textPaint.measureText(label) + 16f
+            val textH = textPaint.textSize + 12f
+            val bgTop = (box.top - textH).coerceAtLeast(0f)
+            canvas.drawRect(box.left, bgTop, box.left + textW, bgTop + textH, labelBgPaint)
+            canvas.drawText(label, box.left + 8f, bgTop + textH - 8f, textPaint)
         }
     }
 }
