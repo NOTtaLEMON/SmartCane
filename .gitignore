@@ -19,6 +19,13 @@ vision_process.log
 # VS Code
 .vscode/
 
+# Android Studio / Gradle (generated, not source)
+.gradle/
+.idea/
+*.iml
+build/
+local.properties
+
 # OS
 Thumbs.db
 .DS_Store
