@@ -163,8 +163,13 @@ class CaneVisionActivity : AppCompatActivity() {
         // Text-to-Speech engine
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale.US
+                val result = tts?.setLanguage(Locale.US)
+                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    tts?.language = Locale.getDefault()
+                }
                 ttsReady = true
+            } else {
+                Log.e(TAG, "TTS init failed with status $status — voice alerts disabled")
             }
         }
 
