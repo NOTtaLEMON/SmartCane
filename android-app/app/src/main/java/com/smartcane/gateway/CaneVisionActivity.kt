@@ -118,9 +118,10 @@ class CaneVisionActivity : AppCompatActivity() {
         statusText = TextView(this).apply {
             text  = "Initialising vision..."
             setTextColor(Color.WHITE)
-            setBackgroundColor(Color.argb(160, 0, 0, 0))
-            textSize = 14f
-            setPadding(16, 8, 16, 8)
+            setBackgroundColor(Color.argb(200, 0, 0, 0))
+            textSize = 18f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setPadding(20, 12, 20, 12)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT
@@ -272,30 +273,7 @@ class CaneVisionActivity : AppCompatActivity() {
         val now = System.currentTimeMillis()
         if (now - (lastAlertMs[det.label] ?: 0L) < ALERT_COOLDOWN_MS) return
         lastAlertMs[det.label] = now
-
-        // --- Notification (shows for ~1 s then auto-dismisses) ---
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                == PackageManager.PERMISSION_GRANTED) {
-
-            val tapIntent = PendingIntent.getActivity(
-                this, 0,
-                Intent(this, CaneVisionActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_SINGLE_TOP },
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            val notif = NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_dialog_alert)
-                .setContentTitle("${det.label.replaceFirstChar { it.uppercase() }} detected")
-                .setContentText("${(det.confidence * 100).toInt()}% confidence")
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setTimeoutAfter(1000L)   // auto-dismiss after 1 second
-                .setContentIntent(tapIntent)
-                .setAutoCancel(true)
-                .build()
-            NotificationManagerCompat.from(this).notify(det.label.hashCode(), notif)
-        }
-
-        // --- TTS voice alert ---
+        // TTS voice alert only
         tts.speak("${det.label} detected", TextToSpeech.QUEUE_FLUSH, null, det.label)
     }
 
@@ -330,17 +308,17 @@ class DetectionOverlayView(context: android.content.Context) :
 
     private val boxPaint = Paint().apply {
         style       = Paint.Style.STROKE
-        strokeWidth = 4f
+        strokeWidth = 6f
         color       = Color.CYAN
     }
-    private val labelPaint = Paint().apply {
-        style    = Paint.Style.FILL
-        color    = Color.argb(200, 0, 0, 0)
-        textSize = 36f
+    private val labelBgPaint = Paint().apply {
+        style = Paint.Style.FILL
+        color = Color.argb(210, 0, 0, 0)
     }
     private val textPaint = Paint().apply {
         color    = Color.WHITE
-        textSize = 36f
+        textSize = 48f
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
     }
 
     fun setResults(list: List<DetectionResult>, bitmapW: Float, bitmapH: Float) {
@@ -352,25 +330,28 @@ class DetectionOverlayView(context: android.content.Context) :
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val scaleX = width  / srcW
-        val scaleY = height / srcH
+        if (srcW == 0f || srcH == 0f) return
+        // Coords are normalized [0,1] — scale directly to view dimensions
+        val scaleX = width.toFloat()
+        val scaleY = height.toFloat()
         for (det in results) {
             val box = RectF(
-                det.boundingBox.left   * srcW * scaleX,
-                det.boundingBox.top    * srcH * scaleY,
-                det.boundingBox.right  * srcW * scaleX,
-                det.boundingBox.bottom * srcH * scaleY
+                det.boundingBox.left   * scaleX,
+                det.boundingBox.top    * scaleY,
+                det.boundingBox.right  * scaleX,
+                det.boundingBox.bottom * scaleY
             )
-            
-            // Draw segmentation mask if available
-            det.mask?.let { maskBitmap ->
-                canvas.drawBitmap(maskBitmap, null, box, null)
-            }
+
+            det.mask?.let { canvas.drawBitmap(it, null, box, null) }
 
             canvas.drawRect(box, boxPaint)
-            val label = "${det.label} ${(det.confidence * 100).toInt()}%"
-            canvas.drawRect(box.left, box.top - 42f, box.left + labelPaint.measureText(label) + 8f, box.top, labelPaint)
-            canvas.drawText(label, box.left + 4f, box.top - 8f, textPaint)
+
+            val label = "${det.label}  ${(det.confidence * 100).toInt()}%"
+            val textW = textPaint.measureText(label) + 16f
+            val textH = textPaint.textSize + 12f
+            val bgTop = (box.top - textH).coerceAtLeast(0f)
+            canvas.drawRect(box.left, bgTop, box.left + textW, bgTop + textH, labelBgPaint)
+            canvas.drawText(label, box.left + 8f, bgTop + textH - 8f, textPaint)
         }
     }
 }
