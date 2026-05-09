@@ -103,6 +103,9 @@ class CaneSosService : Service() {
             getSharedPreferences(PREF_NAME, MODE_PRIVATE).edit()
                 .putString(PREF_ESP32_IP, ip).apply()
             reconnect()
+        } ?: run {
+            // Null intent = system restarted the service (START_STICKY); reconnect with saved IP
+            if (webSocket == null) connectToESP32()
         }
         return START_STICKY
     }

@@ -148,6 +148,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
         uiHandler.postDelayed(renderRunnable, 50)
 
         if (!allPermissionsGranted()) permLauncher.launch(allPermissions)
+        else startCaneService()
     }
 
     override fun onDestroy() {
