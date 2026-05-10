@@ -205,11 +205,11 @@ class PhoneDashboardActivity : AppCompatActivity() {
         val parts = raw.split(",")
         if (parts.size != 4) return
 
-        // parts[0] = VL53L0X ToF (mm → convert to cm) → Drop/Step sensor
-        // parts[1] = TF-Luna LiDAR (cm) → Forward sensor
-        val tofMm   = parts[0].trim().toIntOrNull() ?: 0
+        // parts[0] = dist_fwd → Forward sensor
+        // parts[1] = dist_drop → Drop/Step sensor
+        val lidarCm = parts[0].trim().toIntOrNull() ?: 0
+        val tofMm   = parts[1].trim().toIntOrNull() ?: 0
         val tofCm   = tofMm / 10
-        val lidarCm = parts[1].trim().toIntOrNull() ?: 0
         val fall    = parts[2].trim().toIntOrNull() ?: 0
         val light   = parts[3].trim().toIntOrNull() ?: 0
 

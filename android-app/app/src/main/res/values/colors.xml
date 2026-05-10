@@ -4,10 +4,10 @@
     <color name="white">#FFFFFFFF</color>
 
     <!-- Smart Cane brand palette -->
-    <color name="sc_primary">#006D77</color>
-    <color name="sc_primary_dark">#004D56</color>
-    <color name="sc_accent">#83C5BE</color>
-    <color name="sc_surface">#F0F7F8</color>
+    <color name="sc_primary">#00897B</color>
+    <color name="sc_primary_dark">#005F56</color>
+    <color name="sc_accent">#26A69A</color>
+    <color name="sc_surface">#E8F5F4</color>
     <color name="sc_on_primary">#FFFFFF</color>
     <color name="sc_text_primary">#0D1B1E</color>
     <color name="sc_text_secondary">#4A6670</color>
