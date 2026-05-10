@@ -2,4 +2,17 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Smart Cane brand palette -->
+    <color name="sc_primary">#006D77</color>
+    <color name="sc_primary_dark">#004D56</color>
+    <color name="sc_accent">#83C5BE</color>
+    <color name="sc_surface">#F0F7F8</color>
+    <color name="sc_on_primary">#FFFFFF</color>
+    <color name="sc_text_primary">#0D1B1E</color>
+    <color name="sc_text_secondary">#4A6670</color>
+    <color name="sc_card_bg">#FFFFFF</color>
+    <color name="sc_divider">#C8DDE0</color>
+    <color name="sc_start">#1A7A4A</color>
+    <color name="sc_stop">#C0392B</color>
 </resources>
