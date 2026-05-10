@@ -42,6 +42,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.YuvImage
+import android.media.AudioAttributes
 import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
@@ -121,8 +122,10 @@ class CaneVisionActivity : AppCompatActivity() {
         statusText = TextView(this).apply {
             text  = "Initialising vision..."
             setTextColor(Color.WHITE)
-            setBackgroundColor(Color.argb(160, 0, 0, 0))
-            textSize = 14f
+            setBackgroundColor(Color.argb(220, 0, 0, 0))
+            textSize = 18f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setShadowLayer(8f, 0f, 0f, Color.BLACK)
             setPadding(16, 8, 16, 8)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -168,6 +171,13 @@ class CaneVisionActivity : AppCompatActivity() {
                 if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                     tts?.language = Locale.getDefault()
                 }
+                tts?.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                tts?.setSpeechRate(1.0f)
                 ttsReady = true
             } else {
                 Log.e(TAG, "TTS init failed with status $status — voice alerts disabled")
@@ -286,7 +296,15 @@ class CaneVisionActivity : AppCompatActivity() {
         val now = System.currentTimeMillis()
         if (now - (lastAlertMs[det.label] ?: 0L) < ALERT_COOLDOWN_MS) return
         lastAlertMs[det.label] = now
-        if (ttsReady) tts?.speak("${det.label} detected", TextToSpeech.QUEUE_FLUSH, null, det.label)
+        if (ttsReady) {
+            val speakStatus = tts?.speak("${det.label} detected", TextToSpeech.QUEUE_FLUSH, null, det.label)
+            if (speakStatus != TextToSpeech.SUCCESS) {
+                Log.e(TAG, "TTS speak failed for ${det.label} with code=$speakStatus")
+                runOnUiThread {
+                    statusText.text = "⚠ Voice alert failed. Check phone TTS engine and media volume."
+                }
+            }
+        }
         sendHazardNotification(det)
     }
 
@@ -351,12 +369,13 @@ class DetectionOverlayView(context: android.content.Context) :
     }
     private val labelBgPaint = Paint().apply {
         style = Paint.Style.FILL
-        color = Color.argb(210, 0, 0, 0)
+        color = Color.argb(235, 0, 0, 0)
     }
     private val textPaint = Paint().apply {
         color    = Color.WHITE
-        textSize = 48f
+        textSize = 52f
         typeface = android.graphics.Typeface.DEFAULT_BOLD
+        setShadowLayer(6f, 0f, 0f, Color.BLACK)
     }
 
     fun setResults(list: List<DetectionResult>, bitmapW: Float, bitmapH: Float) {
