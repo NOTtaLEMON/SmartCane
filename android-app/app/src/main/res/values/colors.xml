@@ -4,6 +4,8 @@
     <color name="white">#FFFFFFFF</color>
 
     <!-- Smart Cane brand palette -->
+    <color name="sc_blue_title">#1565C0</color>
+    <color name="sc_blue_subtitle">#1E88E5</color>
     <color name="sc_primary">#00897B</color>
     <color name="sc_primary_dark">#005F56</color>
     <color name="sc_accent">#26A69A</color>

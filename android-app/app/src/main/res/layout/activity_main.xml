@@ -7,6 +7,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/sc_surface"
+    android:fitsSystemWindows="true"
     tools:context=".MainActivity">
 
     <!-- ── Header bar ── -->
@@ -28,7 +29,7 @@
         android:textSize="32sp"
         android:textStyle="bold"
         android:letterSpacing="0.10"
-        android:textColor="@color/sc_primary"
+        android:textColor="@color/sc_blue_title"
         android:layout_marginTop="28dp"
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
@@ -42,7 +43,7 @@
         android:layout_height="wrap_content"
         android:text="Version 10.5.26"
         android:textSize="14sp"
-        android:textColor="@color/sc_accent"
+        android:textColor="@color/sc_blue_subtitle"
         android:textStyle="bold"
         android:letterSpacing="0.05"
         android:layout_marginTop="2dp"
