@@ -314,7 +314,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
     private fun buildUI() {
         val BG       = Color.parseColor("#0A0E14")
         val CARD_BG  = Color.parseColor("#131920")
-        val ACCENT   = Color.parseColor("#3FB950")
+        val ACCENT   = Color.parseColor("#1E88E5")
         val TEXT_PRI = Color.parseColor("#E6EDF3")
         val TEXT_SEC = Color.parseColor("#7D8590")
         val DIVIDER  = Color.parseColor("#21262D")
@@ -355,8 +355,8 @@ class PhoneDashboardActivity : AppCompatActivity() {
 
         // --- Title ---
         root.addView(TextView(this).apply {
-            text      = "🦯 Smart Cane"
-            textSize  = 24f
+            text      = "🦯 SmartCane"
+            textSize  = 26f
             typeface  = Typeface.DEFAULT_BOLD
             setTextColor(ACCENT)
             gravity   = Gravity.CENTER_HORIZONTAL
@@ -364,15 +364,15 @@ class PhoneDashboardActivity : AppCompatActivity() {
         })
         root.addView(TextView(this).apply {
             text     = "Live Sensor Dashboard"
-            textSize = 12f
-            setTextColor(TEXT_SEC)
+            textSize = 13f
+            setTextColor(Color.parseColor("#90CAF9"))
             gravity  = Gravity.CENTER_HORIZONTAL
             setPadding(0, 0, 0, 4)
         })
         root.addView(TextView(this).apply {
-            text     = "v1.1-wifi-tts"
+            text     = "v1.2-ui-blue"
             textSize = 10f
-            setTextColor(Color.parseColor("#3FB950"))
+            setTextColor(Color.parseColor("#1E88E5"))
             gravity  = Gravity.CENTER_HORIZONTAL
             setPadding(0, 0, 0, 20)
         })
