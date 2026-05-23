@@ -86,6 +86,7 @@ class CaneVisionActivity : AppCompatActivity() {
 
     private val inferenceExecutor = Executors.newSingleThreadExecutor()
     private var detector: TfliteObjectDetector? = null
+    private var potholeDetector: PotholeDetector? = null
     private val lastAlertMs = mutableMapOf<String, Long>()
     private val lastNotifMs = mutableMapOf<String, Long>()
     private var tts: TextToSpeech? = null
@@ -187,7 +188,7 @@ class CaneVisionActivity : AppCompatActivity() {
             }
         }
 
-        // Load TFLite model if available
+        // Load TFLite models
         runCatching {
             detector = TfliteObjectDetector(this)
             Log.i(TAG, "TFLite model loaded")
@@ -198,6 +199,12 @@ class CaneVisionActivity : AppCompatActivity() {
                     "yolov8m_seg_320_float16.tflite, yolov8n_320_float16.tflite,\n" +
                     "yolov8s_320_float16.tflite, yolov8m_320_float16.tflite"
             Log.e(TAG, "Model load failed", it)
+        }
+        runCatching {
+            potholeDetector = PotholeDetector(this)
+            Log.i(TAG, "Pothole detector loaded")
+        }.onFailure {
+            Log.w(TAG, "Pothole detector not loaded: ${it.message}")
         }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
@@ -212,6 +219,7 @@ class CaneVisionActivity : AppCompatActivity() {
         super.onDestroy()
         inferenceExecutor.shutdown()
         detector?.close()
+        potholeDetector?.close()
         tts?.stop()
         tts?.shutdown()
     }
@@ -264,9 +272,18 @@ class CaneVisionActivity : AppCompatActivity() {
             return
         }
 
-        val results = runCatching { det.detect(bitmap) }.getOrElse {
+        val mainResults = runCatching { det.detect(bitmap) }.getOrElse {
             Log.e(TAG, "Inference failed", it); emptyList()
         }
+        val potholeResults = potholeDetector?.let {
+            runCatching { it.detect(bitmap) }.getOrElse { e ->
+                Log.e(TAG, "Pothole inference failed", e); emptyList()
+            }
+        } ?: emptyList()
+        // Merge: pothole-detector results take priority for pothole class
+        val potholeLabels = potholeResults.map { it.label }.toSet()
+        val filteredMain = mainResults.filter { it.label != "Pothole" || potholeLabels.isEmpty() }
+        val results = (filteredMain + potholeResults).sortedByDescending { it.confidence }
         imageProxy.close()
 
         // Update overlay on main thread
