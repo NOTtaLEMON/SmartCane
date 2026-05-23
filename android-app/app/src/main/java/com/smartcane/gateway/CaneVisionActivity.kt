@@ -88,7 +88,6 @@ class CaneVisionActivity : AppCompatActivity() {
     private var detector: TfliteObjectDetector? = null
     private var potholeDetector: PotholeDetector? = null
     private val lastAlertMs = mutableMapOf<String, Long>()
-    private val lastNotifMs = mutableMapOf<String, Long>()
     private var tts: TextToSpeech? = null
     private var ttsReady = false
 
@@ -310,6 +309,8 @@ class CaneVisionActivity : AppCompatActivity() {
     }
 
     private fun fireHazardAlert(det: DetectionResult) {
+        // Pothole voice alerts only above 60% confidence
+        if (det.label == "Pothole" && det.confidence < 0.60f) return
         val now = System.currentTimeMillis()
         if (now - (lastAlertMs[det.label] ?: 0L) < ALERT_COOLDOWN_MS) return
         lastAlertMs[det.label] = now
@@ -322,32 +323,6 @@ class CaneVisionActivity : AppCompatActivity() {
                 }
             }
         }
-        sendHazardNotification(det)
-    }
-
-    private fun sendHazardNotification(det: DetectionResult) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) return
-        val now = System.currentTimeMillis()
-        if (now - (lastNotifMs[det.label] ?: 0L) < NOTIF_COOLDOWN_MS) return
-        lastNotifMs[det.label] = now
-        val tapIntent = android.app.PendingIntent.getActivity(
-            this, 0,
-            Intent(this, CaneVisionActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-            },
-            android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        val notif = androidx.core.app.NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("Hazard: ${det.label}")
-            .setContentText("${det.label.replaceFirstChar { it.uppercase() }} detected (${(det.confidence * 100).toInt()}% confidence)")
-            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(tapIntent)
-            .setAutoCancel(true)
-            .build()
-        androidx.core.app.NotificationManagerCompat.from(this).notify(det.label.hashCode(), notif)
     }
 
     // -----------------------------------------------------------------------
