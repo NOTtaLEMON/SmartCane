@@ -60,28 +60,32 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
         private const val NUM_COORDS     = 4
         private const val MASK_SIZE      = 160    // standard for YOLOv8-seg 320 input
 
-        // Smart Cane custom segmentation classes (trained model)
+        // Smart Cane custom segmentation classes (trained model) + Tree detection
         private val SMART_CANE_LABELS = arrayOf(
-            "person",           // 0 - human obstacle
+            "person",           // 0 - human obstacle (CRITICAL - safety)
             "furniture",        // 1 - chair, table, couch, bed
-            "vehicle",          // 2 - car, truck, motorcycle, bicycle
+            "vehicle",          // 2 - car, truck, motorcycle, bicycle (CRITICAL - safety)
             "animal",           // 3 - dog, cat, other animals
-            "pothole",          // 4 - road damage, hole
-            "water_puddle",     // 5 - standing water
-            "slippery_floor",   // 6 - ice, wet floor
-            "clear_path"        // 7 - safe walking area
+            "pothole",          // 4 - road damage, hole (HAZARD)
+            "water_puddle",     // 5 - standing water (HAZARD)
+            "slippery_floor",   // 6 - ice, wet floor (HAZARD)
+            "clear_path",       // 7 - safe walking area
+            "tree"              // 8 - trees, branches, vegetation (OBSTACLE)
         )
 
         // Confidence thresholds per class for obstacle detection
+        // Safety-focused: Lower thresholds for critical detections (person, vehicle)
+        // Higher thresholds for hazards to reduce false positives
         private val CLASS_CONFIDENCE_THRESHOLDS = mapOf(
-            0 to 0.35f,  // person - lower threshold for safety
-            1 to 0.40f,  // furniture
-            2 to 0.35f,  // vehicle - critical, lower threshold
-            3 to 0.40f,  // animal
-            4 to 0.45f,  // pothole - hazard, keep threshold
-            5 to 0.50f,  // water_puddle - hazard
-            6 to 0.50f,  // slippery_floor - hazard
-            7 to 0.60f   // clear_path - high threshold (rare in detections)
+            0 to 0.35f,  // person - CRITICAL: lower threshold for safety (aggressive detection)
+            1 to 0.45f,  // furniture - medium threshold
+            2 to 0.35f,  // vehicle - CRITICAL: lower threshold for safety (aggressive detection)
+            3 to 0.45f,  // animal - medium threshold
+            4 to 0.50f,  // pothole - hazard, use 50% as requested
+            5 to 0.50f,  // water_puddle - hazard, use 50% as requested
+            6 to 0.50f,  // slippery_floor - hazard, use 50% as requested
+            7 to 0.60f,  // clear_path - high threshold (rare in detections)
+            8 to 0.45f   // tree - medium threshold for obstacle detection
         )
 
         // COCO class indices (fallback for generic model)
@@ -185,7 +189,8 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
         val candidates = mutableListOf<DetectionResult>()
         val numClasses = if (numChannels > 84) 80 else numChannels - NUM_COORDS
         val numMaskCoeffs = numChannels - NUM_COORDS - numClasses
-        val isCustomSegModel = numClasses == SMART_CANE_LABELS.size && numClasses != 80
+        // Updated: Check for 9-class custom model (includes tree detection)
+        val isCustomSegModel = (numClasses == SMART_CANE_LABELS.size || numClasses in 8..9) && numClasses != 80
 
         for (a in 0 until numAnchors) {
             var bestScore = CONF_THRESHOLD
