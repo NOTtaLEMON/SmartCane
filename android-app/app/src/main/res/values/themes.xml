@@ -1,9 +1,27 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
     <style name="Base.Theme.SmartCane" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="colorPrimary">@color/sc_primary</item>
+        <item name="colorPrimaryDark">@color/sc_primary_dark</item>
+        <item name="colorAccent">@color/sc_accent</item>
+        <item name="android:windowBackground">@color/sc_surface</item>
+        <item name="android:statusBarColor">@color/sc_primary_dark</item>
     </style>
 
     <style name="Theme.SmartCane" parent="Base.Theme.SmartCane" />
+
+    <style name="Widget.SmartCane.Button.Primary" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/sc_primary</item>
+        <item name="android:textColor">@color/sc_on_primary</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:letterSpacing">0.08</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <style name="Widget.SmartCane.Button.Stop" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/sc_stop</item>
+        <item name="android:textColor">@color/sc_on_primary</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:letterSpacing">0.08</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
 </resources>

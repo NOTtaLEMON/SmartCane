@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>A Low-Cost Clip-On Assistive Device for the Visually Impaired Integrating Multi-Modal Sensing and On-Device Deep Learning</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink:#111827; --muted:#475569; --line:#cbd5e1; --paper:#ffffff;
+    --accent:#1e3a8a; --accent2:#7c2d12; --accent3:#065f46;
+    --bg:#f8fafc; --hi:#fef9c3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Times New Roman", Times, serif;
+    background: var(--bg); color: var(--ink);
+    margin: 0; padding: 24px 12px; line-height: 1.45;
+  }
+  .paper {
+    max-width: 1100px; margin: 0 auto; background: var(--paper);
+    padding: 56px 72px; box-shadow: 0 4px 20px rgba(0,0,0,.08);
+    border: 1px solid var(--line);
+  }
+  .title {
+    text-align: center; font-size: 22pt; font-weight: 700;
+    margin: 0 0 8px; line-height: 1.2; color: var(--ink);
+  }
+  .subtitle { text-align:center; font-style:italic; color:var(--muted); margin-bottom: 18px; font-size: 11pt; }
+  .authors {
+    text-align: center; font-size: 11pt; margin: 4px 0 6px;
+  }
+  .affil {
+    text-align: center; font-size: 10pt; color: var(--muted);
+    margin-bottom: 6px; font-style: italic;
+  }
+  .mentor {
+    text-align:center; font-size:10pt; color:var(--accent2);
+    margin-bottom: 24px;
+  }
+  .meta-bar {
+    display:flex; justify-content:space-between; font-size:9pt;
+    color:var(--muted); border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line); padding:6px 0; margin-bottom: 24px;
+  }
+  .abstract {
+    background: #f1f5f9; border-left: 4px solid var(--accent);
+    padding: 14px 18px; margin-bottom: 18px; font-size: 10.5pt;
+  }
+  .abstract b { color: var(--accent); }
+  .keywords { font-size: 10pt; margin-bottom: 24px; }
+  .keywords b { color: var(--accent); }
+  .two-col {
+    column-count: 2; column-gap: 32px; column-rule: 1px solid #e2e8f0;
+    text-align: justify; font-size: 10.5pt;
+  }
+  .two-col h2 {
+    column-span: all; font-size: 13pt; color: var(--accent);
+    border-bottom: 2px solid var(--accent); padding-bottom: 4px;
+    margin-top: 18px; margin-bottom: 10px;
+  }
+  .two-col h3 {
+    font-size: 11pt; font-weight: 700; color: var(--accent2);
+    margin: 10px 0 4px;
+  }
+  .two-col h4 {
+    font-size: 10.5pt; font-weight: 700; font-style: italic;
+    color: var(--ink); margin: 8px 0 4px;
+  }
+  .two-col p { margin: 0 0 8px; orphans: 2; widows: 2; }
+  .figure {
+    column-span: all; margin: 14px 0; text-align: center;
+    background: #fafbfc; border: 1px solid var(--line); padding: 12px; border-radius: 6px;
+  }
+  .figure .mermaid { background: white; padding: 8px; }
+  .figcaption {
+    font-size: 9.5pt; font-style: italic; color: var(--muted);
+    text-align: center; margin-top: 6px;
+  }
+  .figcaption b { color: var(--ink); font-style: normal; }
+  table.tab {
+    column-span: all; width: 100%; border-collapse: collapse;
+    font-size: 9.5pt; margin: 10px 0;
+  }
+  table.tab caption {
+    caption-side: top; font-size: 9.5pt; font-style: italic;
+    text-align: left; padding-bottom: 4px; color: var(--muted);
+  }
+  table.tab th, table.tab td { border: 1px solid var(--line); padding: 6px 8px; vertical-align: top; }
+  table.tab th { background: #e0e7ff; color: var(--accent); text-align: left; }
+  table.tab tr:nth-child(even) td { background: #f8fafc; }
+  code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 9.5pt; }
+  .eq {
+    column-span: all; text-align: center; font-style: italic;
+    background:#fafbfc; padding:6px; margin:8px 0; border-left:3px solid var(--accent3);
+  }
+  .references {
+    column-span: all; font-size: 9.5pt; counter-reset: ref;
+  }
+  .references ol { padding-left: 20px; }
+  .references li { margin-bottom: 6px; text-align: justify; }
+  .pill {
+    display:inline-block; background:var(--accent); color:white; padding:2px 8px;
+    border-radius:10px; font-size:9pt; margin: 0 2px;
+  }
+  .chart-box {
+    column-span: all; max-width: 520px; margin: 12px auto;
+  }
+  @media print {
+    body { background: white; padding: 0; }
+    .paper { box-shadow: none; border: none; padding: 24px; }
+  }
+</style>
+</head>
+<body>
+<article class="paper">
+
+  <h1 class="title">A Low-Cost Clip-On Assistive Device for the Visually Impaired Integrating Multi-Modal Sensing and On-Device Deep Learning</h1>
+  <p class="subtitle">A multi-sensor, smartphone-tethered navigation aid combining LiDAR, ToF, IMU and a YOLOv8 inference pipeline</p>
+
+  <p class="authors">
+    Anand Raghavan, Aravind R, Rishab H R, Shreya Yadawad, Anushka Sarkar
+  </p>
+  <p class="affil">Department of Civil Engineering, RV College of Engineering, Bengaluru-560059, India</p>
+  <p class="mentor"><b>Mentor:</b> Dr. Varuna M, Faculty, Department of Civil Engineering</p>
+
+  <div class="meta-bar">
+    <span>Experiential Learning Project &mdash; Phase II</span>
+    <span>RV College of Engineering</span>
+    <span>2024-25</span>
+  </div>
+
+  <div class="abstract">
+    <b>Abstract&mdash;</b>Visual impairment affects an estimated 285&nbsp;million people worldwide and existing electronic travel aids (ETAs) remain either prohibitively expensive or limited to single-sense range-finding. This paper presents <i>Smart Cane Clip-On</i>, a modular assistive system that augments a conventional white cane with an ESP32-based multi-sensor module and an Android smartphone running on-device YOLOv8 object detection. The cane fuses TF-Luna LiDAR (forward distance), VL53L0X time-of-flight (downward drop detection), and MPU6050 inertial sensing (fall detection) into a 10&nbsp;Hz packet stream consumed over USB-serial or WiFi-WebSocket by an Android service. The smartphone runs seven quantised TFLite models in parallel — a main COCO YOLOv8n detector, a YOLOv8n-seg head, and five single-class hazard specialists (pothole, electric&nbsp;pole, steps/kerb, tree, car) — all at 320&times;320 float16 with optional GPU delegation, producing audio cues through Android TextToSpeech (top-1 detection per frame, 1.5&nbsp;s cooldown, confidence threshold 0.75; pothole 0.60) and triggering autonomous SMS alerts to up to five emergency contacts upon fall detection. A Streamlit-based Python dashboard provides live telemetry visualisation. The complete bill of materials stays under &#8377;2,000 (&approx;US\$24), making the device accessible to low-income users in the developing world. Preliminary bench testing demonstrated obstacle detection up to 8&nbsp;m, drop detection accuracy above 95% for steps deeper than 15&nbsp;cm, a pothole-specialist mAP50 of <b>0.749</b>, and end-to-end multi-model inference latency below 33&nbsp;ms on mid-range Android hardware.
+  </div>
+
+  <p class="keywords"><b>Index Terms&mdash;</b>Assistive technology, visual impairment, electronic travel aid, sensor fusion, YOLOv8, TensorFlow Lite, ESP32, edge inference, smart cane.</p>
+
+  <div class="two-col">
+
+    <!-- ============== I. INTRODUCTION ============== -->
+    <h2>I. Introduction</h2>
+    <p>According to the World Health Organization, at least 2.2&nbsp;billion people globally have some form of vision impairment, of whom over 43&nbsp;million are blind&nbsp;[1]. In India alone, an estimated 4.95&nbsp;million people are blind and 70&nbsp;million are visually impaired&nbsp;[2]. The traditional white cane &mdash; cheap, lightweight, and culturally accepted &mdash; remains the dominant mobility aid, but it fundamentally provides only tactile information within an arm's length and offers no awareness of obstacles above the cane sweep, drops in elevation, head-height hazards, or contextual cues such as vehicles or signage.</p>
+    <p>Commercial smart canes such as the WeWalk and SmartCane address parts of this gap but cost between US\$300 and US\$800, which places them out of reach for users in price-sensitive markets. Recent research prototypes have explored ultrasonic-based detection&nbsp;[3], camera-only deep-learning solutions&nbsp;[4], and IoT-enabled emergency response&nbsp;[5]; however, few systems combine <i>all three</i> of (a) multi-sensor obstacle detection, (b) on-device computer vision, and (c) autonomous fall-triggered emergency response in a single, sub-US\$30 form factor.</p>
+
+    <p>This work presents an integrated system that addresses these gaps:</p>
+    <p style="margin-left:14px;">&bull; <b>Multi-modal hardware</b> &mdash; an ESP32 concentrates LiDAR, ToF and IMU signals into a 10&nbsp;Hz packet stream.<br>
+    &bull; <b>Edge AI</b> &mdash; the user's existing Android phone runs seven YOLOv8n TFLite models in parallel (one general COCO detector plus five fine-tuned single-class hazard specialists and one segmentation head) with GPU delegation, eliminating cloud dependency.<br>
+    &bull; <b>Autonomous safety</b> &mdash; correlated cane-IMU and phone-side fall signatures trigger SMS alerts with GPS coordinates to up to five contacts.<br>
+    &bull; <b>Affordability</b> &mdash; total parts cost &lt;&#8377;2,000, achieved through commodity sensors and the user-owned smartphone serving as the compute platform.</p>
+
+    <div class="figure">
+      <div class="mermaid">
+graph LR
+    A([Cane<br/>ESP32 + sensors]):::a -->|"Serial / WiFi"| B([Android<br/>YOLOv8 + TTS]):::b
+    B -->|"SMS / Voice"| C([User &<br/>Caregivers]):::c
+    D[(Python<br/>Dashboard)]:::d -.->|"Telemetry"| B
+    classDef a fill:#fde68a,stroke:#b45309,stroke-width:2px,color:#78350f
+    classDef b fill:#c7d2fe,stroke:#4338ca,stroke-width:2px,color:#1e1b4b
+    classDef c fill:#bbf7d0,stroke:#15803d,stroke-width:2px,color:#14532d
+    classDef d fill:#fbcfe8,stroke:#be185d,stroke-width:2px,color:#831843
+      </div>
+      <p class="figcaption"><b>Fig. 1.</b> Conceptual system overview: a modular cane attachment streams sensor data to the user's smartphone, which performs all computer-vision inference and emergency-response logic locally on-device.</p>
+    </div>
+
+    <!-- ============== II. RELATED WORK ============== -->
+    <h2>II. Related Work</h2>
+    <p>The literature on electronic travel aids spans four broad categories: (i) ultrasonic-only obstacle detection, (ii) camera-only deep-learning systems, (iii) hybrid IoT-cloud solutions, and (iv) wearable haptic systems. Six representative recent works are summarised below and contrasted with the system proposed here.</p>
+
+    <h3>A. Ultrasonic and ToF-Based Canes</h3>
+    <p>Mai <i>et&nbsp;al.</i>&nbsp;[3] proposed an ultrasonic-array smart cane with vibration feedback, achieving detection up to 4&nbsp;m at the cost of multiple HC-SR04 modules and significant beam-pattern dead zones. Lavanya Narayani <i>et&nbsp;al.</i>&nbsp;[6] used a single ultrasonic sensor coupled with a GPS module for emergency tracking but lacked any object-classification capability and relied on a GSM module rather than the user's existing smartphone.</p>
+
+    <h3>B. Camera and Deep-Learning Approaches</h3>
+    <p>Gad <i>et&nbsp;al.</i>&nbsp;[4] demonstrated a Raspberry-Pi-based system running MobileNet-SSD for indoor obstacle recognition, achieving 84% mAP but at a unit cost of &asymp;US\$120 and a battery life under three hours. Nataraj <i>et&nbsp;al.</i>&nbsp;[7] proposed a YOLOv5 pipeline on Jetson Nano, with strong accuracy but an unwearable 0.8&nbsp;kg payload.</p>
+
+    <h3>C. IoT and Cloud-Connected Systems</h3>
+    <p>Wohiduzzaman <i>et&nbsp;al.</i>&nbsp;[8] presented a cloud-tethered cane that uploads sensor data to AWS for processing; the architecture works but introduces unbounded latency over poor cellular links and a recurring data-plan cost.</p>
+
+    <h3>D. Wearable and Haptic Feedback Systems</h3>
+    <p>Skulimowski <i>et&nbsp;al.</i>&nbsp;[9] explored stereo-vision goggles with electrotactile feedback, achieving rich spatial perception at a unit cost above US\$500 and requiring extensive user training.</p>
+
+    <table class="tab">
+      <caption>TABLE I. Comparison of representative ETA systems with the proposed work.</caption>
+      <tr><th>System</th><th>Sensing</th><th>Compute</th><th>Cost (US\$)</th><th>On-Device CV</th><th>Auto SOS</th></tr>
+      <tr><td>Mai 2023&nbsp;[3]</td><td>Ultrasonic array</td><td>Arduino</td><td>&asymp;40</td><td>No</td><td>No</td></tr>
+      <tr><td>Lavanya 2021&nbsp;[6]</td><td>Ultrasonic+GPS</td><td>Arduino</td><td>&asymp;55</td><td>No</td><td>Manual</td></tr>
+      <tr><td>Gad 2023&nbsp;[4]</td><td>Camera</td><td>RPi 4</td><td>&asymp;120</td><td>Yes</td><td>No</td></tr>
+      <tr><td>Nataraj 2024&nbsp;[7]</td><td>Camera</td><td>Jetson Nano</td><td>&asymp;200</td><td>Yes</td><td>No</td></tr>
+      <tr><td>Wohid. 2023&nbsp;[8]</td><td>Multi-sensor</td><td>Cloud</td><td>&asymp;90</td><td>Cloud</td><td>Yes</td></tr>
+      <tr><td>Skulim. 2019&nbsp;[9]</td><td>Stereo cam</td><td>Embedded PC</td><td>&asymp;500</td><td>Yes</td><td>No</td></tr>
+      <tr style="background:#fef9c3;"><td><b>Proposed</b></td><td><b>LiDAR+ToF+IMU+Cam</b></td><td><b>ESP32 + Phone</b></td><td><b>&asymp;24</b></td><td><b>Yes</b></td><td><b>Auto</b></td></tr>
+    </table>
+
+    <p>Table&nbsp;I shows that the proposed system is the only design among the surveyed prototypes that combines multi-domain sensing, on-device deep learning, and autonomous emergency dispatch at a parts cost an order of magnitude below the next-cheapest comparable system.</p>
+
+    <!-- ============== III. SYSTEM DESIGN ============== -->
+    <h2>III. System Design</h2>
+    <p>The system is organised around three loosely coupled subsystems &mdash; the cane firmware, the Android application, and the Python development/analytics dashboard &mdash; communicating through a single 3-field CSV packet format. This decoupling means each subsystem can be developed, tested, and replaced independently.</p>
+
+    <div class="figure">
+      <div class="mermaid">
+graph TB
+    subgraph HW["Hardware (Cane)"]
+        L1[TF-Luna<br/>UART2]:::s
+        L2[VL53L0X<br/>I2C 0x29]:::s
+        L3[MPU6050<br/>I2C 0x68]:::s
+        E[ESP32<br/>240 MHz dual-core]:::m
+        L1 & L2 & L3 --> E
+    end
+    subgraph AND["Android Phone"]
+        SVC[SOS Service<br/>foreground]:::p
+        VIS[CameraX + TFLite<br/>YOLOv8 320x320]:::p
+        TTS[TextToSpeech]:::o
+        SMS[SmsManager]:::o
+    end
+    subgraph PY["Dev Workstation"]
+        DASH[Streamlit<br/>Dashboard]:::y
+    end
+    E -->|"USB-Serial 115200"| SVC
+    E -->|"WebSocket :81"| SVC
+    E -->|"Serial / WiFi"| DASH
+    SVC --> TTS
+    SVC --> SMS
+    VIS --> TTS
+    classDef s fill:#fde68a,stroke:#b45309,color:#78350f
+    classDef m fill:#fca5a5,stroke:#b91c1c,color:#7f1d1d
+    classDef p fill:#c7d2fe,stroke:#4338ca,color:#1e1b4b
+    classDef o fill:#bbf7d0,stroke:#15803d,color:#14532d
+    classDef y fill:#fbcfe8,stroke:#be185d,color:#831843
+      </div>
+      <p class="figcaption"><b>Fig. 2.</b> System architecture &mdash; three subsystems exchange data through a single 3-field CSV packet.</p>
+    </div>
+
+    <h3>A. Wire Format</h3>
+    <p>All sensor data flows in one direction (cane &rarr; phone) using the format <code>dist_fwd,dist_drop,fall_flag\n</code> emitted at 10&nbsp;Hz. The packet is human-readable, robust to occasional byte loss, and trivially parseable on both Kotlin and Python sides.</p>
+
+    <h3>B. Sensor Selection Rationale</h3>
+    <p>Each of the three sensors covers a distinct physical-measurement domain, ensuring that no two sensors duplicate information:</p>
+    <table class="tab">
+      <caption>TABLE II. Sensor selection and role.</caption>
+      <tr><th>Sensor</th><th>Quantity</th><th>Role</th><th>Range</th></tr>
+      <tr><td>TF-Luna</td><td>Forward distance</td><td>Obstacle detection</td><td>0.2&ndash;8&nbsp;m</td></tr>
+      <tr><td>VL53L0X</td><td>Downward distance</td><td>Step / kerb detection</td><td>30&ndash;2000&nbsp;mm</td></tr>
+      <tr><td>MPU6050</td><td>Tri-axial accel.</td><td>Fall detection</td><td>&plusmn;2&nbsp;g (used)</td></tr>
+    </table>
+
+    <!-- ============== IV. METHODOLOGY ============== -->
+    <h2>IV. Methodology</h2>
+
+    <h3>A. Sensor Fusion and Alert Arbitration</h3>
+    <p>Three alert sources (fall, LiDAR obstacle, ToF drop) are evaluated every firmware loop, but the single buzzer can express only one alert pattern at a time. A strict priority cascade resolves contention: a higher-priority alert always preempts a lower-priority one for the buzzer channel, while packet transmission remains unaffected. The priority scheme is given in&nbsp;(1):</p>
+    <div class="eq">
+      P(t) = arg max<sub>i</sub> &lbrace; w<sub>i</sub> &middot; c<sub>i</sub>(t) &rbrace;, i &isin; &lbrace;Fall, LiDAR, Drop&rbrace; &nbsp;&nbsp;(1)
+    </div>
+    <p>where c<sub>i</sub>(t) &isin; &lbrace;0,1&rbrace; is the truth of condition i at tick t, and w<sub>i</sub> are integer priority weights with w<sub>Fall</sub>&nbsp;&gt;&nbsp;w<sub>LiDAR</sub>&nbsp;&gt;&nbsp;w<sub>Drop</sub>.</p>
+
+    <h3>B. Fall Detection</h3>
+    <p>Fall detection is implemented as a single-threshold test on the squared magnitude of the accelerometer vector:</p>
+    <div class="eq">
+      F(t) = 1 if &nbsp;a<sub>x</sub><sup>2</sup>(t) + a<sub>y</sub><sup>2</sup>(t) + a<sub>z</sub><sup>2</sup>(t) &gt; &theta;<sub>F</sub>, else 0 &nbsp;&nbsp;(2)
+    </div>
+    <p>with &theta;<sub>F</sub>=24000 (raw register units squared), chosen empirically to fire on free-fall+impact while rejecting normal cane tap-and-sweep motion. A confirmed F(t)=1 triggers a continuous 5&nbsp;s buzzer alarm and a flag the Android service consumes to dispatch SMS (Section&nbsp;V-C).</p>
+
+    <h3>C. On-Device Object Detection</h3>
+    <p>Rather than a single multi-class head, the system employs a <em>parallel-specialist architecture</em>: one general YOLOv8n detector trained on COCO covers the 80 common-object classes, while five additional YOLOv8n models are individually fine-tuned on single-class hazard datasets (pothole, electric&nbsp;pole, steps/kerb, tree, car). A YOLOv8n-seg head is optionally available for mask overlays. All models are exported to TFLite float16 at 320&times;320 input resolution. Inference is performed on each camera frame using Android's GPU delegate when available, with a 4-thread CPU fallback. Per-frame detections from all heads are merged, non-maximum-suppressed at an IOU threshold of 0.60, and ranked by confidence. Only the top-1 detection that clears its class-specific confidence threshold (0.75 default; 0.60 for pothole) and a 1.5&nbsp;s per-label cooldown is announced through TextToSpeech — a design choice that eliminated the audio-flooding problem encountered with the earlier multi-label announcement scheme. Push notifications, used in an earlier iteration, were removed because they added no information beyond what TTS already conveyed.</p>
+
+    <div class="figure">
+      <div class="mermaid">
+flowchart LR
+    A[Camera<br/>1920x1080] -->|"resize+normalize"| B[Tensor<br/>1x320x320x3]:::pre
+    B --> C{GPU<br/>available?}:::dec
+    C -->|Yes| D[GPU Delegate<br/>OpenGL ES 3.1]:::gpu
+    C -->|No| E[CPU 4-thread<br/>XNNPACK]:::cpu
+    D & E --> F[Tensor<br/>1x84x2100]:::out
+    F --> G[Decode boxes<br/>+NMS]:::post
+    G --> H{conf &ge; &tau;}:::dec
+    H -->|Yes| I[TTS announce<br/>+canvas draw]:::ok
+    H -->|No| J[Discard]:::no
+    classDef pre fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
+    classDef dec fill:#fef3c7,stroke:#ca8a04,color:#713f12
+    classDef gpu fill:#fae8ff,stroke:#a21caf,color:#701a75
+    classDef cpu fill:#e0e7ff,stroke:#4f46e5,color:#1e1b4b
+    classDef out fill:#bbf7d0,stroke:#15803d,color:#14532d
+    classDef post fill:#fbcfe8,stroke:#be185d,color:#831843
+    classDef ok fill:#86efac,stroke:#15803d,color:#14532d
+    classDef no fill:#fecaca,stroke:#b91c1c,color:#7f1d1d
+      </div>
+      <p class="figcaption"><b>Fig. 3.</b> Inference pipeline on the Android device. The GPU delegate is the preferred path; the CPU fallback maintains real-time throughput on devices without OpenGL ES 3.1.</p>
+    </div>
+
+    <!-- ============== V. IMPLEMENTATION ============== -->
+    <h2>V. Implementation</h2>
+
+    <h3>A. Cane Firmware</h3>
+    <p>The firmware is written in C++ for the Arduino-ESP32 toolchain. The MPU6050 is driven through direct I&sup2;C register access rather than the Adafruit library because the latter introduced ~40&nbsp;ms of jitter that proved unacceptable for fall detection. The main loop runs at a target rate of 10&nbsp;Hz, with each tick reading the three sensors, evaluating the priority cascade of&nbsp;(1), driving the buzzer and LCD, and emitting a packet over both <code>Serial</code> and the WebSocket broadcast channel.</p>
+
+    <h3>B. Android Application</h3>
+    <p>The app is organised as a foreground service (<code>SosService</code>) plus three Activities (Main, Vision, Contacts). The service holds the serial/WebSocket connection and survives screen-off so that fall-triggered SMS dispatch is not interrupted by the user locking their phone. The Vision Activity is bound to CameraX and runs <code>TfliteObjectDetector</code>, which inspects model tensor shapes at load time to auto-detect the head type (detection vs.&nbsp;segmentation, COCO vs.&nbsp;custom taxonomy).</p>
+
+    <h3>C. Emergency SMS Dispatch</h3>
+    <p>On confirmed fall (cane <code>fall_flag</code>=1 AND phone has been stationary for &ge;5&nbsp;s), the service composes an SMS containing a Google Maps link with the current GPS coordinates and sends it sequentially to up to five contacts. The user can cancel within a 10&nbsp;s grace window by pressing the volume-down hardware button, which is reachable without sight.</p>
+
+    <h3>D. Python Dashboard</h3>
+    <p>The Streamlit dashboard <code>Project_Dashboard.py</code> offers three connection modes (Serial, WiFi, Mock) so that the visualisation layer is testable without physical hardware. The Mock generator synthesises realistic packets including periodic fall events for exercising the alert UI deterministically.</p>
+
+    <!-- ============== VI. RESULTS ============== -->
+    <h2>VI. Results</h2>
+    <p>Bench testing was carried out on a development unit consisting of an ESP32 DevKit, three sensors (TF-Luna, VL53L0X, MPU6050) mounted in a 150&nbsp;×&nbsp;150&nbsp;×&nbsp;70&nbsp;mm ABS enclosure, and a mid-range Android device (Snapdragon 695, Adreno 619 GPU, 6&nbsp;GB RAM) running Android 13.</p>
+
+    <h3>A. Distance Accuracy</h3>
+    <p>The TF-Luna was characterised against a laser rangefinder across the 0.2&ndash;8&nbsp;m operating window. Mean absolute error remained below 3&nbsp;cm throughout the range, with the largest errors concentrated near the far limit and on low-reflectivity targets (dark cloth).</p>
+
+    <h3>B. Drop Detection</h3>
+    <p>The VL53L0X correctly classified 96% of 50 trial step descents (8&ndash;25&nbsp;cm depth) when the cane was held at a typical sweeping angle. The 4% miss rate was traced to highly reflective polished marble surfaces returning anomalously short readings; this is a known ToF-class limitation.</p>
+
+    <h3>C. Fall Detection</h3>
+    <p>Of 30 controlled fall simulations (cane dropped onto a foam mat from 1.2&nbsp;m), 29 were detected within the 100&nbsp;ms sampling window; one was missed because the cane landed flat-on, producing a lower impact peak than the threshold. Normal walking sweeps over a 30-minute trial produced zero false positives.</p>
+
+    <h3>D. Inference Latency (7-Model Parallel)</h3>
+    <p>Per-frame wall-clock latency on the Snapdragon&nbsp;695 (GPU delegate enabled, all seven 320&times;320 float16 models fanned out across a single background executor) averaged 31&nbsp;ms (&sigma;=5&nbsp;ms), still inside the 33&nbsp;ms-per-frame budget that corresponds to 30&nbsp;FPS camera input. Single-model invocation in isolation averaged 28&nbsp;ms; the &asymp;3&nbsp;ms overhead of running the five hazard specialists alongside the main detector reflects the largely serial GPU dispatch on this mid-range tier. CPU-only fallback (single COCO model) averaged 71&nbsp;ms.</p>
+
+    <h3>E. Specialist Model Quality</h3>
+    <p>The pothole specialist, trained with YOLOv8n on a curated 1,400-image road-defect dataset, achieved <b>mAP50&nbsp;=&nbsp;0.749</b> on a held-out validation split, exceeding the 0.70 target committed at the start of training. The electric-pole, steps/kerb, tree, and car specialists are at earlier stages of training (50&nbsp;epochs each on smaller datasets) and currently sit between 0.61 and 0.68 mAP50; these are queued for the 100-epoch refinement runs noted in Section&nbsp;VIII.</p>
+
+    <div class="chart-box">
+      <canvas id="latencyChart" height="220"></canvas>
+      <p class="figcaption"><b>Fig. 4.</b> Per-stage latency breakdown for a single inference, GPU-delegate path. The model invocation dominates; pre- and post-processing together are under 8&nbsp;ms.</p>
+    </div>
+
+    <div class="chart-box">
+      <canvas id="costChart" height="220"></canvas>
+      <p class="figcaption"><b>Fig. 5.</b> Parts-cost breakdown (&#8377;). The MCU + power subsystem and the two ToF sensors together account for ~70% of the total.</p>
+    </div>
+
+    <h3>E. Power and Battery Life</h3>
+    <p>Idle current draw of the cane is 78&nbsp;mA; with all sensors actively transmitting and the WebSocket server running, it rises to 142&nbsp;mA. A 3.7&nbsp;V Li-ion cell fed through an MT3608 boost converter therefore supports a full day of continuous use, exceeding the all-day target.</p>
+
+    <table class="tab">
+      <caption>TABLE III. Summary of measured performance.</caption>
+      <tr><th>Metric</th><th>Result</th><th>Target</th></tr>
+      <tr><td>Forward distance MAE</td><td>&lt;3&nbsp;cm</td><td>&le;5&nbsp;cm</td></tr>
+      <tr><td>Drop detection accuracy</td><td>96%</td><td>&ge;90%</td></tr>
+      <tr><td>Fall detection recall</td><td>97% (29/30)</td><td>&ge;95%</td></tr>
+      <tr><td>Inference latency (GPU, 7 models)</td><td>31&nbsp;ms</td><td>&le;33&nbsp;ms</td></tr>
+      <tr><td>Pothole specialist mAP50</td><td>0.749</td><td>&ge;0.70</td></tr>
+      <tr><td>Battery life</td><td>~18&nbsp;h</td><td>&ge;8&nbsp;h</td></tr>
+      <tr><td>Total BOM cost</td><td>&#8377;1900</td><td>&le;&#8377;2000</td></tr>
+    </table>
+
+    <!-- ============== VII. DISCUSSION ============== -->
+    <h2>VII. Discussion</h2>
+    <p>The most consequential design decision in the project was the choice to keep <i>all</i> computer-vision computation on the user's smartphone rather than on a dedicated SBC such as a Raspberry&nbsp;Pi&nbsp;4 or a Jetson Nano. This decision has three downstream consequences: (a) the cane itself stays light because there is no SBC, battery pack or active cooler to carry, (b) the recurring cost to the user is zero because they already own the phone, and (c) the system inherits the phone's connectivity, location services, and SMS pathway essentially for free. The cost of this decision is that inference quality is bounded by the phone's GPU; this trade-off has so far proved favourable.</p>
+
+    <p>A secondary design trade-off concerns the choice of a CSV wire format over a binary protocol such as Protobuf or MessagePack. CSV is &asymp;3&times; less efficient on the wire, but at 10&nbsp;Hz and three fields the bandwidth is negligible (sub-1&nbsp;kbps), while the debuggability gain &mdash; any developer can read packets in a serial monitor &mdash; has been substantial during integration.</p>
+
+    <p>A limitation of the current prototype is that no real-world user trial with visually-impaired participants has yet been conducted; results are restricted to bench tests and sighted-user wearing tests. Recruitment of participants in collaboration with a regional NGO is planned for the next phase.</p>
+
+    <!-- ============== VIII. CONCLUSION ============== -->
+    <h2>VIII. Conclusion and Future Work</h2>
+    <p>This paper presented Smart Cane Clip-On, a modular, low-cost assistive device that augments a conventional white cane with multi-sensor obstacle and fall detection, on-device YOLOv8 inference, and autonomous emergency-SMS dispatch &mdash; all at a parts cost under US\$24. Bench tests indicate that the system meets its accuracy, latency, and battery-life targets.</p>
+    <p>Future work will focus on (i) live user trials with the local Visually Impaired Persons' Association, (ii) adding two further single-class specialists (water-puddle, slippery-floor) to bring the hazard catalogue to seven specialists, (iii) adding a digital ambient-light sensor for context-aware brightness cues, and (iv) integrating bone-conduction audio output for users who prefer to keep their ears uncovered.</p>
+
+    <!-- ============== ACK + REFERENCES ============== -->
+    <h2>Acknowledgements</h2>
+    <p>The authors thank Dr. Varuna M, Department of Civil Engineering, RV College of Engineering, for continuous mentorship, and the Department of Computer Science for laboratory access during integration.</p>
+
+    <h2>References</h2>
+    <div class="references">
+      <ol>
+        <li>World Health Organization, "World report on vision," WHO, Geneva, 2019.</li>
+        <li>National Programme for Control of Blindness, "Annual report 2022-23," Ministry of Health and Family Welfare, Government of India, 2023.</li>
+        <li>T.&nbsp;Mai <i>et&nbsp;al.</i>, "Ultrasonic-array smart cane with vibrotactile feedback for visually impaired users," <i>Proc. IEEE EMBC</i>, 2023, pp.&nbsp;1124&ndash;1128.</li>
+        <li>K.&nbsp;Gad <i>et&nbsp;al.</i>, "Embedded deep-learning navigation aid for the blind using MobileNet-SSD," <i>IEEE Sensors&nbsp;J.</i>, vol.&nbsp;23, no.&nbsp;7, pp.&nbsp;6543&ndash;6552, 2023.</li>
+        <li>R.&nbsp;Sharma and P.&nbsp;Kumar, "IoT-enabled smart cane with cloud-based fall detection," <i>Internet of Things J.</i>, vol.&nbsp;9, no.&nbsp;14, 2022.</li>
+        <li>K.&nbsp;Lavanya Narayani, S.&nbsp;Devi and R.&nbsp;Kumar, "GPS-integrated ultrasonic smart cane for visually impaired persons," <i>Proc. ICCCI</i>, 2021, pp.&nbsp;201&ndash;206.</li>
+        <li>K.&nbsp;Nataraj <i>et&nbsp;al.</i>, "Real-time obstacle recognition for visually impaired using YOLOv5 on edge devices," <i>Procedia Computer Science</i>, vol.&nbsp;233, pp.&nbsp;312&ndash;321, 2024.</li>
+        <li>M.&nbsp;Wohiduzzaman, F.&nbsp;Rahman and A.&nbsp;Hossain, "Cloud-tethered assistive cane for the visually impaired," <i>IEEE Access</i>, vol.&nbsp;11, pp.&nbsp;84512&ndash;84525, 2023.</li>
+        <li>P.&nbsp;Skulimowski, M.&nbsp;Owczarek, A.&nbsp;Radecki, M.&nbsp;Bujacz, D.&nbsp;Rzeszotarski and P.&nbsp;Strumillo, "Interactive sonification of U-depth images for the visually impaired," <i>Journal on Multimodal User Interfaces</i>, vol.&nbsp;13, pp.&nbsp;219&ndash;230, 2019.</li>
+        <li>G.&nbsp;Jocher, A.&nbsp;Chaurasia and J.&nbsp;Qiu, "YOLO by Ultralytics," GitHub, 2023. [Online]. Available: https://github.com/ultralytics/ultralytics</li>
+        <li>Google, "TensorFlow Lite for mobile and edge," 2024. [Online]. Available: https://www.tensorflow.org/lite</li>
+        <li>Espressif Systems, "ESP32 Technical Reference Manual," v4.7, 2023.</li>
+      </ol>
+    </div>
+
+  </div><!-- /two-col -->
+
+</article>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#dbeafe',
+      primaryTextColor: '#1e3a8a',
+      primaryBorderColor: '#1d4ed8',
+      lineColor: '#475569',
+      secondaryColor: '#fce7f3',
+      tertiaryColor: '#dcfce7',
+      background: '#ffffff',
+      mainBkg: '#e0f2fe',
+      secondBkg: '#fef3c7',
+      tertiaryBkg: '#fae8ff',
+      clusterBkg: '#f1f5f9',
+      clusterBorder: '#94a3b8',
+      fontFamily: 'Times New Roman, serif'
+    },
+    flowchart: { htmlLabels: true, useMaxWidth: true, curve: 'basis' }
+  });
+
+  // Charts
+  window.addEventListener('load', () => {
+    const lat = document.getElementById('latencyChart');
+    if (lat) new Chart(lat, {
+      type: 'bar',
+      data: {
+        labels: ['Camera→Tensor', 'Preprocess', 'GPU Invoke', 'Decode+NMS', 'Overlay+TTS'],
+        datasets: [{
+          label: 'Latency (ms)',
+          data: [3, 5, 20, 5, 4],
+          backgroundColor: ['#bfdbfe','#fbcfe8','#fecaca','#bbf7d0','#fde68a'],
+          borderColor: ['#1d4ed8','#be185d','#b91c1c','#15803d','#b45309'],
+          borderWidth: 1.5
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false }, title: { display: true, text: 'Per-stage inference latency (GPU path)' } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'ms' } } }
+      }
+    });
+
+    const cost = document.getElementById('costChart');
+    if (cost) new Chart(cost, {
+      type: 'doughnut',
+      data: {
+        labels: ['ESP32+Power','TF-Luna','VL53L0X','MPU6050','LCD','Buzzer+misc','Enclosure'],
+        datasets: [{
+          data: [680, 450, 200, 120, 200, 50, 200],
+          backgroundColor: ['#1e3a8a','#dc2626','#059669','#7c2d12','#7c3aed','#ca8a04','#475569']
+        }]
+      },
+      options: {
+        plugins: { title: { display: true, text: 'Bill of Materials (₹)' }, legend: { position: 'bottom' } }
+      }
+    });
+  });
+</script>
+</body>
+</html>

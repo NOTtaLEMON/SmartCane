@@ -50,12 +50,6 @@ def zone_label(mm: int) -> str:
     if mm < 1500:  return "CAUTION"
     return "CLEAR"
 
-def lux_label(val: int) -> str:
-    if val < 200: return "Very Dark"
-    if val < 500: return "Dim"
-    if val < 800: return "Moderate"
-    return "Bright"
-
 _OBJECT_EMOJI: dict[str, str] = {
     "person": "🚶", "human": "🚶", "pedestrian": "🚶",
     "car": "🚗", "truck": "🚚", "bus": "🚌", "motorcycle": "🏍️", "bicycle": "🚲",
@@ -113,31 +107,28 @@ class Packet:
     dist_fwd: int
     dist_drop: int
     fall_flag: int
-    light_val: int
 
     @classmethod
     def parse(cls, line: str) -> "Packet | None":
         raw = line.strip()
         if not raw:
             return None
-        # New format: L:<cm>,T:<mm>,LDR:<val>,F:<0|1>
+        # New format: L:<cm>,T:<mm>,F:<0|1>
         l_match   = re.search(r"L:(-?[0-9]+)", raw)
         t_match   = re.search(r"T:(-?[0-9]+)", raw)
-        ldr_match = re.search(r"LDR:([0-9]+)", raw)
         f_match   = re.search(r"F:([01])", raw)
-        if l_match and t_match and ldr_match and f_match:
+        if l_match and t_match and f_match:
             lidar_cm = int(l_match.group(1))
             tof_mm   = int(t_match.group(1))
-            ldr      = int(ldr_match.group(1))
             fall     = int(f_match.group(1))
             # dist_fwd = LiDAR (front, cm -> store as cm)
             # dist_drop = ToF (downward, mm)
-            return cls(lidar_cm, tof_mm, fall, ldr)
-        # Legacy fallback: plain "045,000,0,0550"
+            return cls(lidar_cm, tof_mm, fall)
+        # Legacy fallback: plain "045,000,0"
         parts = [p.strip() for p in raw.split(",") if p.strip()]
-        if len(parts) == 4:
+        if len(parts) >= 3:
             try:
-                return cls(int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]))
+                return cls(int(parts[0]), int(parts[1]), int(parts[2]))
             except ValueError:
                 pass
         return None
@@ -277,19 +268,16 @@ class MockSource:
                 fwd = int(400 + 50 * random.random())
                 drop = int(100 + 30 * random.random())  # Very close drop detection
                 fall = 1  # Fall detected
-                light = int(500 + 200 * random.random())
             elif self.preset_mode == "close_obstacle":
                 # Simulate a close obstacle (critical zone)
                 fwd = int(100 + 50 * random.random())  # Very close: 100-150mm
                 drop = int(180 + random.randint(-40, 40))
                 fall = 0
-                light = int(500 + 200 * random.random())
             else:
                 # Normal mode
                 fwd = max(50, int(400 + 300 * random.random() - (self._t % 30) * 5))
                 drop = int(180 + random.randint(-40, 40))
                 fall = 0
-                light = int(500 + 200 * random.random())
         else:
             if self.preset_mode:
                 self.preset_mode = None
@@ -297,10 +285,9 @@ class MockSource:
             fwd = max(50, int(400 + 300 * random.random() - (self._t % 30) * 5))
             drop = int(180 + random.randint(-40, 40))
             fall = 1 if random.random() < 0.01 else 0
-            light = int(500 + 200 * random.random())
         
         time.sleep(0.1)
-        return Packet(fwd, drop, fall, light)
+        return Packet(fwd, drop, fall)
 
     def close(self):
         pass
@@ -654,8 +641,8 @@ with export_tabs[0]:
             hist_data = pd.DataFrame(list(st.session_state.hist))
             if not hist_data.empty:
                 hist_data["timestamp"] = pd.to_datetime(hist_data["t"], unit="s")
-                hist_data = hist_data[["timestamp", "fwd", "drop", "fall", "lux"]]
-                hist_data.columns = ["Timestamp", "LiDAR Front (cm)", "ToF Drop (mm)", "Fall Detected", "Light Level"]
+                hist_data = hist_data[["timestamp", "fwd", "drop", "fall"]]
+                hist_data.columns = ["Timestamp", "LiDAR Front (cm)", "ToF Drop (mm)", "Fall Detected"]
                 
                 # Create CSV
                 csv_buffer = io.StringIO()
@@ -772,14 +759,12 @@ with export_tabs[2]:
 with export_tabs[2]:
     if st.session_state.hist:
         hist_df = pd.DataFrame(list(st.session_state.hist))
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Avg Distance", f"{hist_df['fwd'].mean():.0f} mm")
         with col2:
             st.metric("Min Distance", f"{hist_df['fwd'].min():.0f} mm")
         with col3:
-            st.metric("Avg Light", f"{hist_df['lux'].mean():.0f} lux")
-        with col4:
             falls = hist_df['fall'].sum()
             st.metric("Fall Events", f"{int(falls)}")
     else:
@@ -790,11 +775,10 @@ st.divider()
 fall_ph = st.empty()
 
 st.subheader("🔍 Sensor Readings")
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3 = st.columns(3)
 card_fwd  = c1.empty()
 card_drop = c2.empty()
 card_fall = c3.empty()
-card_lux  = c4.empty()
 
 st.divider()
 
@@ -804,16 +788,13 @@ with st.container():
 
 st.divider()
 st.subheader("📈 Sensor History")
-ch1, ch2, ch3 = st.columns(3)
+ch1, ch2 = st.columns(2)
 with ch1:
     st.caption("LiDAR Front (cm)")
     chart_fwd  = st.empty()
 with ch2:
     st.caption("ToF Drop (mm)")
     chart_drop = st.empty()
-with ch3:
-    st.caption("Ambient Light")
-    chart_lux  = st.empty()
 
 # ---------------------------------------------------------------------------
 #  Main loop
@@ -838,7 +819,6 @@ if src is not None:
             "fwd":  pkt.dist_fwd,
             "drop": pkt.dist_drop,
             "fall": pkt.fall_flag,
-            "lux":  pkt.light_val,
         })
         df = pd.DataFrame(list(st.session_state.hist)[-window:])
 
@@ -874,19 +854,6 @@ if src is not None:
                 st.session_state.last_alert = datetime.now()
                 st.toast(f"🚪 CRITICAL: {pkt.dist_fwd}mm away!", icon="⚠️")
         
-        # Very dark light condition alert
-        if pkt.light_val < 200:
-            if not st.session_state.last_alert or (datetime.now() - st.session_state.last_alert).total_seconds() > 10:
-                alert = Alert(
-                    timestamp=datetime.now(),
-                    alert_type="DARK_LIGHT",
-                    severity="WARNING",
-                    message=f"Very dark environment: {pkt.light_val} lux",
-                    sensor_value=float(pkt.light_val)
-                )
-                st.session_state.alerts.append(alert)
-                st.session_state.last_alert = datetime.now()
-                st.toast(f"🌙 Dark: {pkt.light_val} lux", icon="ℹ️")
 
         # Sensor cards
         card_fwd.metric(
@@ -902,11 +869,6 @@ if src is not None:
         card_fall.metric(
             label="Fall Status",
             value="🚨 FALL!" if pkt.fall_flag else "✓ Stable",
-        )
-        card_lux.metric(
-            label="Ambient Light",
-            value=lux_label(pkt.light_val),
-            delta=str(pkt.light_val),
         )
 
         # Vision detections
@@ -932,7 +894,6 @@ if src is not None:
         if not df.empty:
             chart_fwd.line_chart(df.set_index("t")[["fwd"]],   height=160)
             chart_drop.line_chart(df.set_index("t")[["drop"]], height=160)
-            chart_lux.line_chart(df.set_index("t")[["lux"]],   height=160)
 
     # Keep serial port alive between reruns -- only close mock source
     if mock_mode:

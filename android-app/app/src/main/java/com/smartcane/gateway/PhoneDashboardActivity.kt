@@ -63,7 +63,6 @@ class PhoneDashboardActivity : AppCompatActivity() {
     private lateinit var tvDistFwd:      TextView
     private lateinit var tvZone:         TextView
     private lateinit var tvDistDrop:     TextView
-    private lateinit var tvLight:        TextView
     private lateinit var tvFall:         TextView
     private lateinit var tvVision:       TextView
     private lateinit var tvLastUpdate:   TextView
@@ -203,19 +202,17 @@ class PhoneDashboardActivity : AppCompatActivity() {
     // -----------------------------------------------------------------------
     private fun updateSensorUI(raw: String) {
         val parts = raw.split(",")
-        if (parts.size != 4) return
+        if (parts.size != 3) return
 
-        // parts[0] = VL53L0X ToF (mm → convert to cm) → Drop/Step sensor
-        // parts[1] = TF-Luna LiDAR (cm) → Forward sensor
-        val tofMm   = parts[0].trim().toIntOrNull() ?: 0
+        // parts[0] = dist_fwd → Forward sensor
+        // parts[1] = dist_drop → Drop/Step sensor
+        val lidarCm = parts[0].trim().toIntOrNull() ?: 0
+        val tofMm   = parts[1].trim().toIntOrNull() ?: 0
         val tofCm   = tofMm / 10
-        val lidarCm = parts[1].trim().toIntOrNull() ?: 0
         val fall    = parts[2].trim().toIntOrNull() ?: 0
-        val light   = parts[3].trim().toIntOrNull() ?: 0
 
         tvDistFwd.text    = "FORWARD\n$lidarCm cm"
         tvDistDrop.text   = "DROP / STEP\n$tofCm cm"
-        tvLight.text      = "AMBIENT LIGHT:  ${luxLabel(light)}"
         tvLastUpdate.text = "Last packet: ${timeNow()}"
 
         val zone = zoneLabelCm(lidarCm)
@@ -298,13 +295,6 @@ class PhoneDashboardActivity : AppCompatActivity() {
         else       -> Color.parseColor("#00C853")
     }
 
-    private fun luxLabel(v: Int) = when {
-        v < 200 -> "Very Dark"
-        v < 500 -> "Dim"
-        v < 800 -> "Moderate"
-        else    -> "Bright"
-    }
-
     private fun timeNow() =
         SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
 
@@ -314,7 +304,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
     private fun buildUI() {
         val BG       = Color.parseColor("#0A0E14")
         val CARD_BG  = Color.parseColor("#131920")
-        val ACCENT   = Color.parseColor("#3FB950")
+        val ACCENT   = Color.parseColor("#1E88E5")
         val TEXT_PRI = Color.parseColor("#E6EDF3")
         val TEXT_SEC = Color.parseColor("#7D8590")
         val DIVIDER  = Color.parseColor("#21262D")
@@ -355,8 +345,8 @@ class PhoneDashboardActivity : AppCompatActivity() {
 
         // --- Title ---
         root.addView(TextView(this).apply {
-            text      = "🦯 Smart Cane"
-            textSize  = 24f
+            text      = "🦯 SmartCane"
+            textSize  = 26f
             typeface  = Typeface.DEFAULT_BOLD
             setTextColor(ACCENT)
             gravity   = Gravity.CENTER_HORIZONTAL
@@ -364,15 +354,15 @@ class PhoneDashboardActivity : AppCompatActivity() {
         })
         root.addView(TextView(this).apply {
             text     = "Live Sensor Dashboard"
-            textSize = 12f
-            setTextColor(TEXT_SEC)
+            textSize = 13f
+            setTextColor(Color.parseColor("#90CAF9"))
             gravity  = Gravity.CENTER_HORIZONTAL
             setPadding(0, 0, 0, 4)
         })
         root.addView(TextView(this).apply {
-            text     = "v1.1-wifi-tts"
+            text     = "v1.2-ui-blue"
             textSize = 10f
-            setTextColor(Color.parseColor("#3FB950"))
+            setTextColor(Color.parseColor("#1E88E5"))
             gravity  = Gravity.CENTER_HORIZONTAL
             setPadding(0, 0, 0, 20)
         })
@@ -446,7 +436,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
         root.addView(heading("OBSTACLE ZONE", "⚠️"))
         root.addView(tvZone)
 
-        // --- Distances + light in a 2-col grid ---
+        // --- Distances in a 2-col grid ---
         root.addView(heading("SENSORS", "📡"))
         fun sensorRow(left: TextView, right: TextView) = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -464,9 +454,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
         }
         tvDistFwd  = valueCard { text = "Forward\n--" }
         tvDistDrop = valueCard { text = "Drop/Step\n--" }
-        tvLight    = valueCard { text = "Light\n--" }
         root.addView(sensorRow(tvDistFwd, tvDistDrop))
-        root.addView(tvLight)
 
         // --- Vision ---
         tvVision = valueCard { text = "Vision: inactive" }

@@ -208,11 +208,11 @@ class CaneSosService : Service() {
 
     // -------------------------------------------------------------------------
     //  Packet parser
-    //  Format: "dist_fwd,dist_drop,fall_flag,light_val"
+    //  Format: "dist_fwd,dist_drop,fall_flag"
     // -------------------------------------------------------------------------
     private fun handlePacket(raw: String) {
         val parts = raw.split(",")
-        if (parts.size != 4) return
+        if (parts.size != 3) return
         val fallFlag = parts[2].trim().toIntOrNull() ?: 0
 
         Log.d(TAG, "packet=$raw")

@@ -19,8 +19,8 @@ android {
         applicationId = "com.smartcane.gateway"
         minSdk        = 26          // Android 8 — safe lower bound for BLE APIs
         targetSdk     = 35
-        versionCode   = 2
-        versionName   = "1.1-wifi-tts"
+        versionCode   = 3
+        versionName   = "1.2-ui-blue"
     }
 
     buildTypes {

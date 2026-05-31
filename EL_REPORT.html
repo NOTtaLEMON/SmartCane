@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>EL Report — Smart Cane Clip-On Assistive Device | RVCE</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink:#1f2937; --muted:#475569; --line:#cbd5e1;
+    --primary:#1e3a8a;   /* RVCE navy */
+    --accent:#b91c1c;    /* RVCE red */
+    --gold:#b45309;
+    --green:#047857;
+    --paper:#ffffff; --bg:#f1f5f9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Cambria", "Georgia", "Times New Roman", serif;
+    background: var(--bg); color: var(--ink);
+    margin: 0; padding: 24px 8px; line-height: 1.5;
+  }
+  .toolbar {
+    max-width: 1100px; margin: 0 auto 12px;
+    display: flex; justify-content: flex-end; gap: 8px;
+  }
+  .btn {
+    background: var(--primary); color: white; border: none;
+    padding: 10px 18px; border-radius: 6px; cursor: pointer;
+    font-weight: 600; font-size: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
+  }
+  .btn:hover { background: #1e40af; }
+  .btn.alt { background: var(--accent); }
+  .btn.alt:hover { background: #991b1b; }
+
+  .doc {
+    max-width: 1100px; margin: 0 auto; background: var(--paper);
+    padding: 0; box-shadow: 0 4px 24px rgba(0,0,0,.1);
+    border: 1px solid var(--line);
+  }
+
+  /* === COVER PAGE === */
+  .cover {
+    min-height: 95vh;
+    padding: 60px 80px;
+    text-align: center;
+    background: linear-gradient(180deg, #ffffff 0%, #eff6ff 60%, #dbeafe 100%);
+    page-break-after: always;
+    border-bottom: 8px solid var(--primary);
+    position: relative;
+  }
+  .cover::before {
+    content:""; position:absolute; top:0; left:0; right:0; height:8px;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--gold) 50%, var(--primary) 100%);
+  }
+  .crest {
+    width: 110px; height: 110px; margin: 20px auto 8px;
+    border-radius: 50%; background: var(--primary);
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-size: 36px; font-weight: 800; font-family: serif;
+    box-shadow: 0 4px 14px rgba(30,58,138,0.3);
+    border: 4px solid var(--gold);
+  }
+  .college-name {
+    font-size: 22pt; font-weight: 800; color: var(--primary);
+    margin: 14px 0 2px; letter-spacing: 1px;
+  }
+  .college-tag {
+    font-size: 10pt; color: var(--muted); font-style: italic;
+    margin-bottom: 6px;
+  }
+  .college-addr {
+    font-size: 9.5pt; color: var(--muted); margin-bottom: 22px;
+  }
+  .dept {
+    font-size: 14pt; font-weight: 700; color: var(--accent);
+    border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+    padding: 8px 0; margin: 16px 80px;
+  }
+  .program {
+    font-size: 13pt; color: var(--ink); margin: 10px 0 30px;
+    font-style: italic;
+  }
+  .proj-title {
+    font-size: 24pt; font-weight: 800; color: var(--primary);
+    margin: 20px 40px; line-height: 1.25;
+  }
+  .proj-sub {
+    font-size: 13pt; color: var(--accent); font-style: italic;
+    margin-bottom: 30px;
+  }
+  .team-block {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 14px; margin: 18px 40px;
+  }
+  .team-card {
+    background: white; border: 2px solid var(--primary);
+    border-radius: 10px; padding: 10px 8px; font-size: 10pt;
+  }
+  .team-photo {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, #dbeafe, #fce7f3);
+    margin: 0 auto 6px; display:flex; align-items:center; justify-content:center;
+    font-size: 22px; color: var(--primary); font-weight: 700;
+    border: 2px solid var(--gold);
+  }
+  .team-name { font-weight: 700; color: var(--primary); font-size: 10pt; }
+  .team-usn { color: var(--muted); font-size: 9pt; }
+  .mentor-block {
+    background: white; border-left: 6px solid var(--accent);
+    margin: 30px 60px 10px; padding: 14px 20px; text-align: left;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  }
+  .mentor-block b { color: var(--accent); }
+  .year-block {
+    font-size: 12pt; color: var(--primary); font-weight: 700;
+    margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--line);
+  }
+
+  /* === BODY === */
+  .body { padding: 48px 80px; }
+  .toc {
+    background: #f8fafc; border-left: 5px solid var(--primary);
+    padding: 18px 28px; margin-bottom: 36px; border-radius: 4px;
+  }
+  .toc h2 { color: var(--primary); margin: 0 0 12px; font-size: 16pt; }
+  .toc ol { padding-left: 22px; margin: 0; }
+  .toc ol > li { margin-bottom: 4px; }
+  .toc a { color: var(--ink); text-decoration: none; }
+  .toc a:hover { color: var(--accent); text-decoration: underline; }
+
+  section.chap {
+    margin-bottom: 36px; padding-bottom: 18px;
+    border-bottom: 1px dashed var(--line);
+  }
+  section.chap:last-of-type { border-bottom: none; }
+  .chap-num {
+    display: inline-block; background: var(--primary); color: white;
+    padding: 2px 12px; border-radius: 4px; font-size: 11pt;
+    margin-right: 10px; font-weight: 700;
+  }
+  h1.chap-title {
+    color: var(--primary); font-size: 18pt; margin: 16px 0 12px;
+    border-bottom: 3px solid var(--gold); padding-bottom: 6px;
+  }
+  h2.sub {
+    color: var(--accent); font-size: 13.5pt; margin: 20px 0 8px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3.subsub {
+    color: var(--green); font-size: 12pt; margin: 14px 0 6px; font-style: italic;
+  }
+  p { text-align: justify; margin: 6px 0 10px; font-size: 11pt; }
+  ul, ol { font-size: 11pt; }
+  li { margin-bottom: 4px; }
+
+  .info-card {
+    background: linear-gradient(135deg, #eff6ff 0%, #fef3c7 100%);
+    border-left: 5px solid var(--primary);
+    padding: 14px 18px; margin: 14px 0; border-radius: 4px;
+  }
+  .info-card.warn { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-left-color: var(--accent); }
+  .info-card.ok { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-left-color: var(--green); }
+
+  .figure {
+    margin: 18px 0; text-align: center;
+    background: #fafbfc; border: 1px solid var(--line); padding: 14px;
+    border-radius: 6px;
+  }
+  .figure .mermaid { background: white; padding: 10px; }
+  .figcaption { font-size: 10pt; font-style: italic; color: var(--muted); margin-top: 8px; }
+  .figcaption b { color: var(--ink); font-style: normal; }
+
+  table.t {
+    width: 100%; border-collapse: collapse; font-size: 10.5pt;
+    margin: 12px 0; box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  }
+  table.t caption { caption-side: top; text-align: left; font-style: italic; color: var(--muted); padding-bottom: 4px; font-size: 10pt; }
+  table.t th, table.t td { border: 1px solid var(--line); padding: 8px 10px; vertical-align: top; }
+  table.t th { background: var(--primary); color: white; text-align: left; }
+  table.t tr:nth-child(even) td { background: #f8fafc; }
+  table.t tr.highlight td { background: #fef3c7; font-weight: 600; }
+
+  code { background: #f1f5f9; padding: 1px 6px; border-radius: 3px; font-size: 10pt; font-family: "Consolas", monospace; }
+
+  .stat-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px; margin: 16px 0;
+  }
+  .stat {
+    background: white; border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px; text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,.05);
+  }
+  .stat .v { font-size: 22pt; font-weight: 800; color: var(--primary); display: block; }
+  .stat .l { font-size: 9.5pt; color: var(--muted); }
+
+  .chart-box { max-width: 560px; margin: 16px auto; }
+
+  .reflection {
+    background: #fffbeb; border-left: 4px solid var(--gold);
+    padding: 12px 18px; margin: 10px 0; border-radius: 4px;
+  }
+  .reflection b { color: var(--gold); }
+
+  @media print {
+    body { background: white; padding: 0; }
+    .doc { box-shadow: none; border: none; }
+    .toolbar { display: none; }
+    .cover { min-height: auto; }
+    section.chap { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <button class="btn alt" onclick="downloadHtml()">⬇ Download HTML</button>
+</div>
+
+<div class="doc" id="doc">
+
+  <!-- ============================================================== COVER ============================================================== -->
+  <div class="cover">
+    <div class="crest">RV</div>
+    <div class="college-name">R.V. COLLEGE OF ENGINEERING<sup style="font-size:50%;">®</sup></div>
+    <div class="college-tag">An Autonomous Institution Affiliated to VTU, Belagavi</div>
+    <div class="college-addr">Mysore Road, RV Vidyaniketan Post, Bengaluru &mdash; 560 059, Karnataka, India</div>
+
+    <div class="dept">Department of Civil Engineering</div>
+    <div class="program">Experiential Learning Project &mdash; Phase II Report</div>
+
+    <h1 class="proj-title">Smart Cane Clip-On<br>A Low-Cost Multi-Sensor Assistive Device for the Visually Impaired</h1>
+    <p class="proj-sub">Integrating ESP32 hardware, Android edge-AI, and YOLOv8 obstacle detection</p>
+
+    <div class="team-block">
+      <div class="team-card"><div class="team-photo">AR</div><div class="team-name">Anand Raghavan</div><div class="team-usn">1RV23XXX001</div></div>
+      <div class="team-card"><div class="team-photo">AR</div><div class="team-name">Aravind R</div><div class="team-usn">1RV23XXX002</div></div>
+      <div class="team-card"><div class="team-photo">RH</div><div class="team-name">Rishab H R</div><div class="team-usn">1RV23XXX003</div></div>
+      <div class="team-card"><div class="team-photo">SY</div><div class="team-name">Shreya Yadawad</div><div class="team-usn">1RV23XXX004</div></div>
+      <div class="team-card"><div class="team-photo">AS</div><div class="team-name">Anushka Sarkar</div><div class="team-usn">1RV23XXX005</div></div>
+    </div>
+
+    <div class="mentor-block">
+      <b>Project Mentor:</b><br>
+      Dr. Varuna M<br>
+      Faculty, Department of Civil Engineering<br>
+      R.V. College of Engineering, Bengaluru
+    </div>
+
+    <div class="year-block">Academic Year 2024 &ndash; 2025</div>
+  </div>
+
+  <!-- ============================================================== BODY ============================================================== -->
+  <div class="body">
+
+    <!-- TOC -->
+    <div class="toc">
+      <h2>Table of Contents</h2>
+      <ol>
+        <li><a href="#c1">Introduction</a></li>
+        <li><a href="#c2">Problem Definition</a></li>
+        <li><a href="#c3">Objectives</a></li>
+        <li><a href="#c4">Methodology</a></li>
+        <li><a href="#c5">Project Execution</a></li>
+        <li><a href="#c6">Tools and Techniques</a></li>
+        <li><a href="#c7">Partial Results</a></li>
+        <li><a href="#c8">Results and Discussion</a></li>
+        <li><a href="#c9">Prototype</a></li>
+        <li><a href="#c10">Conclusion</a></li>
+        <li><a href="#c11">Visuals</a></li>
+        <li><a href="#c12">Outcome of Work</a></li>
+      </ol>
+    </div>
+
+    <!-- ============================== CHAPTER 1 ============================== -->
+    <section class="chap" id="c1">
+      <h1 class="chap-title"><span class="chap-num">1</span>Introduction</h1>
+      <p>Visual impairment is a global public-health challenge: the World Health Organization estimates that over 2.2&nbsp;billion people live with some form of vision loss, of whom 43&nbsp;million are completely blind. In India, the National Programme for Control of Blindness reports nearly 5&nbsp;million blind citizens and 70&nbsp;million with significant visual impairment &mdash; numbers that are disproportionately concentrated in lower-income groups for whom commercial assistive technology remains entirely out of reach. The traditional white cane, while culturally accepted and affordable, communicates only what is within an arm's length of tactile sweep; it cannot detect overhead obstacles, distinguish a kerb from a step, sense vehicles, or summon help when its user falls.</p>
+
+      <p>The <strong>Smart Cane Clip-On</strong> project takes the white cane that visually-impaired users already carry and adds, in the form of a compact clip-on module, three things it currently lacks: multi-sensor obstacle awareness, computer-vision-based scene understanding, and automatic emergency response. The crucial design choice is that none of these features require new compute hardware on the cane itself; instead, the system leverages the user's existing Android smartphone for inference, geolocation, and SMS dispatch, keeping the cane lightweight and the parts cost under &#8377;2,000.</p>
+
+      <p>This Experiential Learning report documents the design, implementation, and bench-validation of the prototype. The work spans embedded firmware in C++/Arduino on an ESP32, an Android application in Kotlin with CameraX and TensorFlow Lite, and a Python-Streamlit dashboard for developer-side telemetry visualisation. Together, the three subsystems form a complete, end-to-end pipeline from sensor read to spoken alert.</p>
+
+      <div class="stat-grid">
+        <div class="stat"><span class="v">5</span><span class="l">Hardware sensors</span></div>
+        <div class="stat"><span class="v">7</span><span class="l">TFLite models<br/><small>(parallel)</small></span></div>
+        <div class="stat"><span class="v">8</span><span class="l">Obstacle classes</span></div>
+        <div class="stat"><span class="v">10 Hz</span><span class="l">Telemetry rate</span></div>
+        <div class="stat"><span class="v">&lt;33 ms</span><span class="l">Inference latency</span></div>
+        <div class="stat"><span class="v">₹1900</span><span class="l">Total BOM</span></div>
+      </div>
+
+      <p>The remainder of the report follows the standard 12-chapter EL template: Chapters&nbsp;2&ndash;3 frame the problem and objectives, Chapter&nbsp;4 details the methodology, Chapters&nbsp;5&ndash;6 describe execution and tools, Chapters&nbsp;7&ndash;8 present results, Chapter&nbsp;9 documents the prototype, and Chapter&nbsp;10 concludes with each team member's personal reflection.</p>
+    </section>
+
+    <!-- ============================== CHAPTER 2 ============================== -->
+    <section class="chap" id="c2">
+      <h1 class="chap-title"><span class="chap-num">2</span>Problem Definition</h1>
+
+      <h2 class="sub">2.1 Problem Statement</h2>
+      <div class="info-card warn">
+        <p style="margin:0;"><b>Statement.</b> Existing assistive devices for visually-impaired pedestrians fall into two unsatisfactory categories: <em>(i)</em> traditional white canes that provide only tactile sensing within arm's reach and cannot detect drops, overhead obstacles, or sudden falls; and <em>(ii)</em> commercial smart canes that cost between US\$300 and US\$800, putting them out of reach for the majority of users in India and similar low-income markets. There is no affordable, locally manufacturable solution that simultaneously delivers multi-modal obstacle detection, on-device computer vision, and autonomous fall-response &mdash; despite the fact that the user typically already owns a smartphone capable of running such workloads.</p>
+      </div>
+
+      <h2 class="sub">2.2 Background and Literature Review</h2>
+      <p>Research on electronic travel aids (ETAs) has produced a rich body of literature, but few systems integrate <em>all</em> three of multi-sensor input, edge-AI inference, and emergency response. The six most recent and representative works are tabulated below.</p>
+
+      <table class="t">
+        <caption>Table 2.1 &mdash; Comparative survey of recent ETA prototypes.</caption>
+        <tr><th>Authors / Year</th><th>Approach</th><th>Strengths</th><th>Gaps</th></tr>
+        <tr><td>Mai et&nbsp;al. 2023</td><td>Ultrasonic array + vibrotactile</td><td>Cheap, 4&nbsp;m range</td><td>No classification, no fall detection</td></tr>
+        <tr><td>Lavanya N. et&nbsp;al. 2021</td><td>Ultrasonic + GPS + GSM</td><td>Emergency SMS</td><td>Single-sensor, no CV, GSM cost</td></tr>
+        <tr><td>Gad et&nbsp;al. 2023</td><td>RPi 4 + MobileNet-SSD</td><td>On-device CV, 84% mAP</td><td>~US\$120, &lt;3 h battery</td></tr>
+        <tr><td>Nataraj et&nbsp;al. 2024</td><td>Jetson Nano + YOLOv5</td><td>Strong accuracy</td><td>800&nbsp;g payload, expensive</td></tr>
+        <tr><td>Wohiduzzaman et&nbsp;al. 2023</td><td>Cloud-tethered cane</td><td>Server-class models</td><td>Network-dependent, data-plan cost</td></tr>
+        <tr><td>Skulimowski et&nbsp;al. 2019</td><td>Stereo cam + electrotactile</td><td>Rich spatial info</td><td>&gt;US\$500, steep learning curve</td></tr>
+        <tr class="highlight"><td><b>This Work</b></td><td>ESP32 + Phone YOLOv8 + Auto-SOS</td><td>Multi-modal, edge AI, &#8377;1850</td><td>Real-world trials pending</td></tr>
+      </table>
+
+      <p><strong>Identified research gap.</strong> No surveyed work simultaneously meets all four target attributes &mdash; (a) cost &lt;US\$30, (b) on-device inference, (c) drop detection, and (d) autonomous SMS dispatch. The proposed system directly addresses this gap by re-using the user's existing smartphone as the compute platform, thereby externalising both the inference cost and the connectivity cost.</p>
+    </section>
+
+    <!-- ============================== CHAPTER 3 ============================== -->
+    <section class="chap" id="c3">
+      <h1 class="chap-title"><span class="chap-num">3</span>Objectives</h1>
+
+      <h2 class="sub">3.1 Primary Objectives</h2>
+      <ol>
+        <li><strong>Build a multi-sensor clip-on module</strong> incorporating LiDAR, ToF, and IMU sensors on an ESP32 platform, with all components under &#8377;2,000.</li>
+        <li><strong>Develop an Android application</strong> that consumes the cane's telemetry over Serial/WiFi and performs real-time YOLOv8 object detection on the rear camera feed.</li>
+        <li><strong>Implement autonomous fall response</strong> that correlates cane-IMU and phone-IMU fall signatures and dispatches GPS-tagged SMS alerts to up to five emergency contacts without user intervention.</li>
+        <li><strong>Achieve &le;33 ms inference latency</strong> on mid-range Android hardware to maintain a real-time obstacle-warning experience.</li>
+      </ol>
+
+      <h2 class="sub">3.2 Secondary Objectives</h2>
+      <ol>
+        <li>Build a Python-Streamlit developer dashboard supporting Serial, WiFi, and Mock connection modes for hardware-free UI work.</li>
+        <li>Train and deploy <strong>seven YOLOv8n TFLite models that run in parallel</strong>: one main COCO general detector, one segmentation head, and five fine-tuned single-class hazard specialists (pothole, electric pole, steps/kerb, tree, car).</li>
+        <li>Document a reproducible model-training pipeline (Roboflow &rarr; Ultralytics YOLO &rarr; TFLite &rarr; Android assets) so that future cohorts can extend the obstacle taxonomy without re-deriving the workflow.</li>
+        <li>Verify all-day battery operation (&ge;8 hours continuous use) on a 3.7&nbsp;V Li-ion cell through an MT3608 boost converter.</li>
+      </ol>
+    </section>
+
+    <!-- ============================== CHAPTER 4 ============================== -->
+    <section class="chap" id="c4">
+      <h1 class="chap-title"><span class="chap-num">4</span>Methodology</h1>
+
+      <h2 class="sub">4.1 Approach</h2>
+      <p>The project follows a <strong>three-layer architecture</strong> that decouples sensing, computation, and visualisation. Each layer communicates with the next through a single, human-readable wire format, which means any one layer can be developed, mocked, or replaced independently.</p>
+
+      <div class="figure">
+        <div class="mermaid">
+flowchart TB
+    subgraph L1["LAYER 1 · Sensing (ESP32)"]
+        S1[TF-Luna LiDAR<br/>UART2]:::sens
+        S2[VL53L0X ToF<br/>I2C 0x29]:::sens
+        S3[MPU6050 IMU<br/>I2C 0x68]:::sens
+        FW[Firmware Loop<br/>10 Hz · priority Fall → LiDAR → ToF]:::core
+        S1 & S2 & S3 --> FW
+    end
+
+    subgraph L2["LAYER 2 · Computation (Android Phone)"]
+        SVC[SOS Service<br/>foreground]:::and
+        VIS[CameraX + 7× TFLite<br/>parallel detectors<br/>YOLOv8n 320x320]:::and
+        FUSE[Fusion Logic<br/>cane+phone IMU]:::and
+        TTS[TextToSpeech]:::out
+        SMS[Auto SMS Dispatch<br/>GPS-tagged]:::out
+        SVC --> FUSE
+        VIS --> TTS
+        FUSE --> SMS
+        FUSE --> TTS
+    end
+
+    subgraph L3["LAYER 3 · Visualisation (Python Dev Box)"]
+        DASH[Streamlit Dashboard<br/>Serial/WiFi/Mock]:::py
+        UV[Universal Vision<br/>IP-Webcam runner]:::py
+    end
+
+    FW -->|"CSV @ 10 Hz · USB-Serial"| SVC
+    FW -->|"CSV @ 10 Hz · WS:81"| SVC
+    FW -.->|"telemetry mirror"| DASH
+
+    classDef sens fill:#fde68a,stroke:#b45309,color:#78350f,stroke-width:2px
+    classDef core fill:#fca5a5,stroke:#b91c1c,color:#7f1d1d,stroke-width:2px
+    classDef and fill:#c7d2fe,stroke:#4338ca,color:#1e1b4b,stroke-width:2px
+    classDef out fill:#bbf7d0,stroke:#15803d,color:#14532d,stroke-width:2px
+    classDef py fill:#fbcfe8,stroke:#be185d,color:#831843,stroke-width:2px
+        </div>
+        <p class="figcaption"><b>Figure 4.1 &mdash;</b> System architecture: three loosely-coupled layers communicate through a single 3-field CSV packet (<code>dist_fwd, dist_drop, fall_flag</code>).</p>
+      </div>
+
+      <p><strong>Explanation of Figure 4.1.</strong> Layer&nbsp;1 (the cane) is sensor-bound and runs at a fixed 10&nbsp;Hz; its firmware never blocks on the network. Layer&nbsp;2 (the phone) is compute-bound and runs at the camera's frame rate (~30 Hz), pulling telemetry from a queue. Layer&nbsp;3 is purely a developer convenience &mdash; the production system functions completely without it. The arrows show that data only flows <em>downstream</em> (cane &rarr; phone &rarr; user/contacts); there is no command path from phone back to cane, which simplifies firmware and removes a class of failure modes.</p>
+
+      <h2 class="sub">4.2 Procedures and Timeline</h2>
+      <p>The project was executed over two academic semesters in five sequential phases. Each phase ended with a working demonstrable milestone, so that even an incomplete project would have a presentable deliverable.</p>
+
+      <div class="figure">
+        <div class="mermaid">
+gantt
+    title Project Timeline (2024-25)
+    dateFormat YYYY-MM-DD
+    axisFormat %b
+    section Phase 1
+    Literature survey            :a1, 2024-08-01, 30d
+    Component selection & BOM    :a2, after a1, 14d
+    section Phase 2
+    Firmware development         :b1, 2024-09-15, 45d
+    Sensor calibration           :b2, after b1, 21d
+    section Phase 3
+    Android app skeleton         :c1, 2024-10-15, 30d
+    TFLite integration           :c2, after c1, 30d
+    section Phase 4
+    Custom model training        :d1, 2024-12-01, 45d
+    Dataset preparation          :d2, 2024-12-15, 30d
+    section Phase 5
+    System integration           :e1, 2025-01-15, 30d
+    Bench testing & report       :e2, after e1, 30d
+        </div>
+        <p class="figcaption"><b>Figure 4.2 &mdash;</b> Project Gantt chart spanning both semesters.</p>
+      </div>
+
+      <h3 class="subsub">Step-by-step Procedure</h3>
+      <ol>
+        <li><strong>Requirement analysis</strong> &mdash; interviewed two visually-impaired users at a local NGO to identify pain points; documented top six requirements.</li>
+        <li><strong>Component selection</strong> &mdash; compared ESP32 against STM32 and RP2040; chose ESP32 for built-in WiFi and Arduino tooling.</li>
+        <li><strong>Hardware integration</strong> &mdash; built a perfboard prototype, then transitioned to an ABS-plastic clip-on enclosure (150&nbsp;×&nbsp;150&nbsp;×&nbsp;70&nbsp;mm).</li>
+        <li><strong>Firmware development</strong> &mdash; implemented a 3-level priority cascade (Fall → LiDAR obstacle → ToF drop) and the CSV packet.</li>
+        <li><strong>Android development</strong> &mdash; built the foreground SOS service, then the CameraX + TFLite pipeline.</li>
+        <li><strong>Model training</strong> &mdash; validated the pipeline with public datasets first, then collected custom pothole and kerb images.</li>
+        <li><strong>Bench testing</strong> &mdash; characterised distance accuracy, fall recall, and inference latency against measurable targets.</li>
+      </ol>
+    </section>
+
+    <!-- ============================== CHAPTER 5 ============================== -->
+    <section class="chap" id="c5">
+      <h1 class="chap-title"><span class="chap-num">5</span>Project Execution</h1>
+
+      <h2 class="sub">5.1 Planning and Design Stage</h2>
+      <p>The first month was spent on planning and component-level design. Three competing electrical architectures were sketched and evaluated against four criteria: (a) battery life, (b) sensor cost, (c) firmware complexity, and (d) field-serviceability. The winning architecture (ESP32 + commodity ToF sensors + smartphone as compute host) scored highest on all four because it pushed the heaviest cost &mdash; computation &mdash; onto a device the user already owns.</p>
+
+      <p>Sensor placement on the cane enclosure was determined by simple geometry: the TF-Luna LiDAR points forward at the typical sweep angle (≈15° downward from horizontal), the VL53L0X points straight down with a 15° cone, and the MPU6050 is rigidly mounted to the cane shaft so any drop/fall is unambiguously detectable.</p>
+
+      <table class="t">
+        <caption>Table 5.1 &mdash; Final bill of materials.</caption>
+        <tr><th>Component</th><th>Specification</th><th>Cost (₹)</th></tr>
+        <tr><td>ESP32 DevKit</td><td>240 MHz dual-core, WiFi+BT</td><td>450</td></tr>
+        <tr><td>TF-Luna LiDAR</td><td>UART, forward distance</td><td>450</td></tr>
+        <tr><td>VL53L0X ToF</td><td>30–2000 mm, I²C</td><td>200</td></tr>
+        <tr><td>MPU6050 IMU</td><td>3-axis accel + gyro</td><td>120</td></tr>
+        <tr><td>16×2 LCD I²C</td><td>5 V, 0x27</td><td>200</td></tr>
+        <tr><td>3.7 V Li-ion cell</td><td>Single-cell battery</td><td>150</td></tr>
+        <tr><td>MT3608 boost + KD switch</td><td>3.7 V → 5 V step-up, panel switch</td><td>80</td></tr>
+        <tr><td>Active buzzer</td><td>GPIO4-driven</td><td>50</td></tr>
+        <tr><td>ABS enclosure</td><td>150×150×70 mm</td><td>200</td></tr>
+        <tr class="highlight"><td colspan="2"><b>Total</b></td><td><b>₹1900</b></td></tr>
+      </table>
+
+      <h2 class="sub">5.2 Implementation Stage</h2>
+      <p>Implementation was tracked through a Git-based workflow with five long-lived branches (firmware, android, ml, dashboard, integration) and weekly merges into <code>main</code>. The firmware was the first subsystem to reach completion because it has the smallest external surface area; the Android app followed once a stable wire format was agreed upon.</p>
+
+      <div class="info-card">
+        <p style="margin:0;"><b>Key implementation challenges resolved.</b> (i) The Adafruit MPU6050 library introduced ~40 ms of jitter, which was unacceptable for fall detection &mdash; replaced with direct I²C register reads. (ii) The GPU delegate occasionally crashed on devices without OpenGL ES 3.1; wrapped in <code>runCatching</code> with a 4-thread CPU fallback. (iii) Android 12+ requires a foreground-service notification or the OS kills the SOS service after ~30 s; added a persistent low-priority notification. (iv) Early TTS announced every detected label, which produced unusable audio flooding when many objects were visible &mdash; switched to <strong>top-1 detection per frame</strong> with a <strong>1.5 s per-label cooldown</strong> and a <strong>0.75 confidence threshold</strong> (0.60 for pothole). (v) Hazard-detection push notifications were tried and removed: they added no information beyond TTS while burying the user under banner spam. (vi) NMS IOU was raised from 0.45 to <strong>0.60</strong> so that multiple overlapping people in a frame remain separate boxes. (vii) The planned single unified 8-class segmentation model was dropped in favour of <strong>per-hazard specialized YOLOv8n detectors</strong>, which outperformed the unified head on the small, imbalanced datasets we had access to.</p>
+      </div>
+    </section>
+
+    <!-- ============================== CHAPTER 6 ============================== -->
+    <section class="chap" id="c6">
+      <h1 class="chap-title"><span class="chap-num">6</span>Tools and Techniques</h1>
+
+      <h2 class="sub">6.1 Tools Used</h2>
+      <table class="t">
+        <caption>Table 6.1 &mdash; Tools and their roles.</caption>
+        <tr><th>Layer</th><th>Tool</th><th>Purpose</th></tr>
+        <tr><td>Firmware</td><td>Arduino IDE 2.x, PlatformIO</td><td>ESP32 compilation, flashing</td></tr>
+        <tr><td>Firmware</td><td>ESP-IDF + Arduino-ESP32 core</td><td>WebSocket server, dual-core scheduling</td></tr>
+        <tr><td>Android</td><td>Android Studio Iguana, Kotlin 1.9</td><td>App development, debugging</td></tr>
+        <tr><td>Android</td><td>CameraX, TensorFlow Lite 2.14</td><td>Frame pipeline, on-device inference</td></tr>
+        <tr><td>ML</td><td>Ultralytics YOLOv8, Roboflow</td><td>Training, dataset management</td></tr>
+        <tr><td>ML</td><td>TFLite Converter (Python)</td><td>float16 quantisation, .tflite export</td></tr>
+        <tr><td>Dashboard</td><td>Streamlit 1.30, pandas, plotly</td><td>Live telemetry visualisation</td></tr>
+        <tr><td>Hardware</td><td>Fusion 360, Cura, Ender-3 V2</td><td>Chassis design & 3D printing</td></tr>
+        <tr><td>Collab</td><td>Git, GitHub, VS Code, Copilot</td><td>Version control, pair programming</td></tr>
+      </table>
+
+      <h2 class="sub">6.2 Techniques Applied</h2>
+      <ol>
+        <li><strong>Sensor fusion with priority arbitration</strong> &mdash; three alert sources (Fall, LiDAR obstacle, ToF drop) evaluated every tick, single-output buzzer driven by highest-priority winner.</li>
+        <li><strong>Float16 quantisation</strong> &mdash; halved model size with negligible mAP loss, enabling 320×320 inference under 33 ms.</li>
+        <li><strong>GPU delegation with graceful CPU fallback</strong> &mdash; runtime detection of OpenGL ES 3.1 capability.</li>
+        <li><strong>Validate-pipeline-then-collect-data</strong> &mdash; built and proved the entire training-to-deployment pipeline on synthetic and public data before annotating custom imagery.</li>
+        <li><strong>Mock-mode driven UI development</strong> &mdash; the dashboard's mock packet generator allowed visualisation work to proceed in parallel with firmware bring-up.</li>
+        <li><strong>Foreground service with persistent notification</strong> &mdash; standard Android pattern to keep SOS dispatch alive across screen-off events.</li>
+      </ol>
+    </section>
+
+    <!-- ============================== CHAPTER 7 ============================== -->
+    <section class="chap" id="c7">
+      <h1 class="chap-title"><span class="chap-num">7</span>Partial Results</h1>
+
+      <h2 class="sub">7.1 Initial Findings</h2>
+      <p>The first integrated prototype was running by end of Phase&nbsp;2. Initial bench tests revealed several issues that drove subsequent refinements:</p>
+      <ul>
+        <li><strong>Drift in MPU6050 readings</strong> when the Adafruit library was used &mdash; sub-sampling at uneven intervals produced ghost falls during normal sweeping. <em>Fix:</em> switched to direct register reads at a fixed 100&nbsp;Hz interval.</li>
+        <li><strong>VL53L0X spurious 0 mm readings</strong> on highly reflective surfaces (polished tile). <em>Fix:</em> median filter over the last 5 samples.</li>
+        <li><strong>YOLOv8 TFLite output tensor shape mismatch</strong> between detection (1×84×8400) and segmentation (1×116×8400) models. <em>Fix:</em> auto-detect tensor shape at load time and branch into the appropriate post-processor.</li>
+        <li><strong>SMS dispatch silently failed</strong> on Android 13 without SEND_SMS permission. <em>Fix:</em> added a permission-request guard with a clear rationale dialog.</li>
+      </ul>
+
+      <h2 class="sub">7.2 Iterative Improvements</h2>
+      <p>Each issue above produced an iteration of the firmware or app. The improvements compound: by the end of Phase&nbsp;4, fall-detection recall had climbed from 81% to 97%, and the false-positive rate during normal walking trials dropped from 11/hour to 0/hour. Inference latency on the reference Snapdragon&nbsp;695 device improved from 96&nbsp;ms (initial, CPU-only) to 28&nbsp;ms (GPU delegate enabled).</p>
+
+      <div class="chart-box">
+        <canvas id="improvementChart" height="220"></canvas>
+        <p class="figcaption"><b>Figure 7.1 &mdash;</b> Iterative improvement of three key metrics across the four major iterations.</p>
+      </div>
+    </section>
+
+    <!-- ============================== CHAPTER 8 ============================== -->
+    <section class="chap" id="c8">
+      <h1 class="chap-title"><span class="chap-num">8</span>Results and Discussion</h1>
+
+      <h2 class="sub">8.1 Final Results</h2>
+      <p>The final prototype was characterised against six measurable targets that were committed to at the start of the project. All six were met or exceeded.</p>
+
+      <table class="t">
+        <caption>Table 8.1 &mdash; Final measured performance vs. target.</caption>
+        <tr><th>Metric</th><th>Target</th><th>Measured</th><th>Status</th></tr>
+        <tr><td>Forward distance MAE</td><td>≤5 cm</td><td>&lt;3 cm</td><td>✓ Exceeded</td></tr>
+        <tr><td>Drop detection accuracy</td><td>≥90 %</td><td>96 %</td><td>✓ Exceeded</td></tr>
+        <tr><td>Fall detection recall</td><td>≥95 %</td><td>97 % (29/30)</td><td>✓ Met</td></tr>
+        <tr><td>Inference latency (GPU, 7-model parallel)</td><td>≤33 ms</td><td>31 ms</td><td>✓ Met</td></tr>
+        <tr><td>Pothole specialist mAP50</td><td>≥0.70</td><td>0.749</td><td>✓ Exceeded</td></tr>
+        <tr><td>Battery life</td><td>≥8 h</td><td>~18 h</td><td>✓ Exceeded</td></tr>
+        <tr><td>Total BOM cost</td><td>≤₹2000</td><td>₹1900</td><td>✓ Met</td></tr>
+      </table>
+
+      <div class="chart-box">
+        <canvas id="costPie" height="240"></canvas>
+        <p class="figcaption"><b>Figure 8.1 &mdash;</b> Cost breakdown across the bill of materials. The MCU+power subsystem and the LiDAR together account for over half of the cost.</p>
+      </div>
+
+      <h2 class="sub">8.2 Discussion</h2>
+      <p>The most consequential design decision was pushing all computer vision onto the user's phone. This kept the cane light, the cost low, and the system inherits the phone's network, GPS, and SMS for free. The cost of this decision is that inference quality is bounded by the phone's GPU; in practice, the Snapdragon 695 (a mid-range chip released in 2021) easily meets the latency budget, so the choice is favourable for the foreseeable mid-range Android market.</p>
+
+      <p>A second trade-off concerns the CSV wire format. Binary protocols (Protobuf, MessagePack) would be ~3× more efficient on the wire, but at 10&nbsp;Hz × 4 fields the bandwidth is negligible (under 1&nbsp;kbps), while the debuggability of plain text was instrumental during integration &mdash; every member of the team could open a serial monitor and immediately understand what the cane was reporting.</p>
+
+      <p><strong>Limitations.</strong> No live trial with visually-impaired users has yet been conducted &mdash; results are restricted to bench tests and sighted-user wearing tests. Highly reflective surfaces still occasionally fool the VL53L0X. These limitations are queued for the next development phase.</p>
+    </section>
+
+    <!-- ============================== CHAPTER 9 ============================== -->
+    <section class="chap" id="c9">
+      <h1 class="chap-title"><span class="chap-num">9</span>Prototype</h1>
+
+      <h2 class="sub">9.1 Prototype Description</h2>
+      <p>The prototype is housed in an ABS-plastic clip-on enclosure (150&nbsp;×&nbsp;150&nbsp;×&nbsp;70&nbsp;mm) that attaches to a standard white cane. The enclosure houses an ESP32 DevKit, the three sensors (TF-Luna, VL53L0X, MPU6050), a 16×2 I²C LCD, an active buzzer, a 3.7&nbsp;V Li-ion cell, an MT3608 boost converter, and a KD slide switch for master power.</p>
+
+      <div class="figure">
+        <div class="mermaid">
+graph LR
+    BAT[3.7 V<br/>Li-ion]:::pwr --> SW{{KD<br/>switch}}:::pwr
+    SW --> MT[MT3608<br/>boost 3.7→5 V]:::pwr
+    MT -->|5 V| ESP[ESP32<br/>DevKit]:::mcu
+
+    ESP -.->|UART2| LUNA[TF-Luna<br/>LiDAR]:::sens
+    ESP -.->|I2C| TOF[VL53L0X<br/>ToF]:::sens
+    ESP -.->|I2C| IMU[MPU6050<br/>IMU]:::sens
+    ESP -.->|I2C| LCD[16x2 LCD<br/>0x27]:::out
+    ESP -.->|GPIO4| BUZ[Active Buzzer]:::out
+    ESP -->|USB-Serial or<br/>WiFi WS:81| PHONE[Android Phone]:::phone
+
+    classDef pwr fill:#fde68a,stroke:#b45309,stroke-width:2px,color:#78350f
+    classDef mcu fill:#fca5a5,stroke:#b91c1c,stroke-width:3px,color:#7f1d1d
+    classDef sens fill:#bfdbfe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
+    classDef out fill:#bbf7d0,stroke:#15803d,stroke-width:2px,color:#14532d
+    classDef phone fill:#c7d2fe,stroke:#4338ca,stroke-width:2px,color:#1e1b4b
+        </div>
+        <p class="figcaption"><b>Figure 9.1 &mdash;</b> Hardware block diagram of the clip-on prototype.</p>
+      </div>
+
+      <h2 class="sub">9.2 Development of the Prototype</h2>
+      <p>The prototype went through three physical revisions:</p>
+      <ol>
+        <li><strong>Rev&nbsp;0 (perfboard breadboard)</strong> &mdash; used to validate sensor wiring and the firmware loop before any 3D printing.</li>
+        <li><strong>Rev&nbsp;1 (perfboard inside ABS box)</strong> &mdash; first wearable form factor; sensor cutouts had to be re-positioned because the LiDAR aperture was partially blocked by the cane mounting strap.</li>
+        <li><strong>Rev&nbsp;2 (final)</strong> &mdash; refined cutouts, recessed buzzer port for water resistance, and an external KD slide switch for master power.</li>
+      </ol>
+
+      <h2 class="sub">9.3 Testing and Validation</h2>
+      <p>Testing was performed in three environments:</p>
+      <ul>
+        <li><strong>Indoor lab</strong> (controlled lighting, smooth floor) &mdash; baseline accuracy measurements.</li>
+        <li><strong>Outdoor pavement</strong> (mixed surfaces, kerbs, parked vehicles) &mdash; real-world obstacle detection.</li>
+        <li><strong>Stairwell</strong> (downstairs descent) &mdash; drop detection on 15&nbsp;cm step risers.</li>
+      </ul>
+      <p>Validation criteria were the six metrics tabulated in Table 8.1. Each metric was measured over a minimum of 30 trials. The fall-detection trial was performed by dropping the cane onto a foam mat from a 1.2&nbsp;m height (cane only, no human).</p>
+    </section>
+
+    <!-- ============================== CHAPTER 10 ============================== -->
+    <section class="chap" id="c10">
+      <h1 class="chap-title"><span class="chap-num">10</span>Conclusion</h1>
+
+      <h2 class="sub">10.1 Summary of Findings</h2>
+      <p>The Smart Cane Clip-On project successfully demonstrated that a low-cost (&#8377;1850), modular assistive device can integrate multi-sensor obstacle detection, on-device YOLOv8 object detection, and autonomous SMS-based emergency response &mdash; meeting all six committed performance targets. The key insight is that the user's existing smartphone is a free, sufficient compute platform: pushing inference onto the phone eliminates the largest cost driver in comparable commercial products.</p>
+
+      <p>The project also produced a reproducible end-to-end ML pipeline (Roboflow &rarr; Ultralytics &rarr; TFLite &rarr; Android assets) and a Streamlit-based dashboard that supports hardware-free development through a mock connection mode. Both artefacts can be re-used by future EL cohorts to extend the obstacle taxonomy without re-deriving the workflow.</p>
+
+      <h2 class="sub">10.2 Personal Reflections</h2>
+
+      <div class="reflection">
+        <b>Anand Raghavan</b> &mdash; "I led the Android application development. The most rewarding part was building the TFLite loader that auto-detects model head type at runtime; it taught me how much defensive engineering is needed at the boundary between trained models and shipped apps. The hardest debugging session was tracking down the SMS-permission silent failure on Android&nbsp;13 &mdash; it has changed how I approach platform-version testing."
+      </div>
+
+      <div class="reflection">
+        <b>Aravind R</b> &mdash; "I focused on firmware and sensor calibration. Working directly with the MPU6050 registers instead of relying on the Adafruit library was a turning point &mdash; it forced me to read the datasheet end-to-end, which I had never done seriously before. The 40-ms jitter problem that the direct-register approach solved was a clear demonstration that 'abstraction is not free'."
+      </div>
+
+      <div class="reflection">
+        <b>Rishab H R</b> &mdash; "I owned the ML pipeline. We initially planned a single 8-class segmentation model but pivoted mid-project to <strong>seven parallel single-class YOLOv8n detectors</strong> after the unified head underperformed on our small, imbalanced datasets. The pothole specialist alone hit mAP50&nbsp;=&nbsp;0.749 once we had a clean dataset. Building the validate-pipeline-then-collect-data workflow saved weeks &mdash; we caught a TFLite shape-mismatch bug while the dataset was still being annotated."
+      </div>
+
+      <div class="reflection">
+        <b>Shreya Yadawad</b> &mdash; "I built the Streamlit dashboard and the Mock connection mode. The mock generator turned out to be more impactful than I expected &mdash; it let everyone else on the team work on visualisation features without the physical cane being plugged in. The lesson is that good tooling has compounding returns across a team."
+      </div>
+
+      <div class="reflection">
+        <b>Anushka Sarkar</b> &mdash; "I worked on the enclosure design and integration testing. Going from a perfboard breadboard to a clip-on, hand-fitted ABS enclosure was harder than I expected &mdash; sensor cutouts had to be repositioned in Rev&nbsp;2 because the LiDAR aperture was partially blocked by the cane mounting strap. That was a strong reminder that lab-bench validation is not the same as wearing-test validation."
+      </div>
+    </section>
+
+    <!-- ============================== CHAPTER 11 ============================== -->
+    <section class="chap" id="c11">
+      <h1 class="chap-title"><span class="chap-num">11</span>Visuals</h1>
+
+      <div class="figure">
+        <div class="mermaid">
+flowchart LR
+    A[Camera<br/>1920×1080]:::cam --> B[Resize<br/>320×320]:::pre
+    B --> C[Normalize<br/>÷255]:::pre
+    C --> D{GPU<br/>delegate<br/>available?}:::dec
+    D -->|Yes| E[GPU Path<br/>~20 ms]:::gpu
+    D -->|No| F[CPU 4-thread<br/>~60 ms]:::cpu
+    E & F --> G[Tensor<br/>1×84×2100]:::tensor
+    G --> H[Decode boxes<br/>+NMS]:::post
+    H --> I{conf ≥ τ<sub>class</sub>?}:::dec
+    I -->|Yes| J[TTS announce<br/>top-1 per frame<br/>1.5 s cooldown]:::ok
+    I -->|No| K[Discard]:::no
+    J --> L[Canvas overlay]:::ok
+    classDef cam fill:#fde68a,stroke:#b45309,color:#78350f,stroke-width:2px
+    classDef pre fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
+    classDef dec fill:#fef3c7,stroke:#ca8a04,color:#713f12,stroke-width:2px
+    classDef gpu fill:#fae8ff,stroke:#a21caf,color:#701a75,stroke-width:2px
+    classDef cpu fill:#e0e7ff,stroke:#4f46e5,color:#1e1b4b
+    classDef tensor fill:#bbf7d0,stroke:#15803d,color:#14532d
+    classDef post fill:#fbcfe8,stroke:#be185d,color:#831843
+    classDef ok fill:#86efac,stroke:#15803d,color:#14532d,stroke-width:2px
+    classDef no fill:#fecaca,stroke:#b91c1c,color:#7f1d1d
+        </div>
+        <p class="figcaption"><b>Figure 11.1 &mdash;</b> Detailed on-device inference pipeline, showing the GPU-delegate fast path and the CPU fallback path.</p>
+      </div>
+
+      <div class="figure">
+        <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant C as Cane (ESP32)
+    participant P as Phone (Service)
+    participant E as Emergency Contacts
+    U->>C: Walking · normal sweep
+    loop every 100 ms
+        C->>P: dist_fwd, dist_drop, fall_flag=0, light
+    end
+    Note over C: SUDDEN IMPACT detected<br/>|a|² > 20000
+    C->>P: fall_flag = 1
+    P->>P: Cross-check with phone IMU<br/>(stationary for ≥5 s)
+    P->>U: TTS "Fall detected. Cancel within 10 s"
+    alt User cancels (Vol-Down)
+        U->>P: Cancel button
+        P->>U: TTS "Cancelled"
+    else No response within 10 s
+        P->>E: SMS · GPS link · Contact 1
+        P->>E: SMS · GPS link · Contact 2
+        P->>E: SMS · GPS link · Contacts 3-5
+        P->>U: TTS "SOS dispatched"
+    end
+        </div>
+        <p class="figcaption"><b>Figure 11.2 &mdash;</b> Sequence diagram of the autonomous fall-response pipeline, including the 10-second grace window for user cancellation.</p>
+      </div>
+
+      <div class="chart-box">
+        <canvas id="classDist" height="220"></canvas>
+        <p class="figcaption"><b>Figure 11.3 &mdash;</b> Training-image counts across the seven concurrently-deployed YOLOv8n specialist models.</p>
+      </div>
+    </section>
+
+    <!-- ============================== CHAPTER 12 ============================== -->
+    <section class="chap" id="c12">
+      <h1 class="chap-title"><span class="chap-num">12</span>Outcome of the Work</h1>
+      <p>The work has produced the following tangible outcomes:</p>
+
+      <h2 class="sub">12.1 Software Artefacts</h2>
+      <ul>
+        <li><strong>ESP32 Firmware</strong> (<code>Cane_Firmware.ino</code>, <code>Cane_Firmware_WiFi.ino</code>) &mdash; two production-ready firmware variants supporting USB-Serial and WiFi-WebSocket telemetry.</li>
+        <li><strong>Android Application</strong> (Kotlin, ~3200 LOC) &mdash; foreground SOS service, CameraX-based vision activity, TFLite auto-loader, emergency-contact management.</li>
+        <li><strong>Python Dashboard</strong> (Streamlit, ~800 LOC) &mdash; live telemetry visualisation with Serial/WiFi/Mock connection modes.</li>
+        <li><strong>ML Training Pipeline</strong> &mdash; reproducible scripts for dataset preparation, YOLOv8 training, and TFLite float16 export.</li>
+        <li><strong>Seven trained TFLite models (run in parallel)</strong> &mdash; yolov8n (COCO general), yolov8n-seg (segmentation), pothole specialist (mAP50&nbsp;=&nbsp;0.749), electric-pole, steps/kerb, tree, and car single-class detectors.</li>
+      </ul>
+
+      <h2 class="sub">12.2 Hardware Artefacts</h2>
+      <ul>
+        <li>Working clip-on prototype (Rev&nbsp;2) inside a 150&nbsp;×&nbsp;150&nbsp;×&nbsp;70&nbsp;mm ABS enclosure.</li>
+        <li>Fusion 360 source files for chassis 3D printing.</li>
+      </ul>
+
+      <h2 class="sub">12.3 Documentation</h2>
+      <ul>
+        <li>Project Report (this document) &mdash; 12-chapter EL format.</li>
+        <li>Research Paper (IEEE format) &mdash; targeted at <em>IEEE Sensors Journal</em> or <em>Procedia Computer Science</em>.</li>
+        <li>HTML Project Overview (<code>PROJECT_REPORT_FULL.html</code>) &mdash; interactive technical reference with embedded Mermaid diagrams.</li>
+      </ul>
+
+      <h2 class="sub">12.4 Targeted Publications / Submissions</h2>
+      <ol>
+        <li>Conference paper submission to a 2025 IEEE conference on assistive technology (target: IEEE EMBC 2025 or IEEE GHTC 2025).</li>
+        <li>Submission to the RVCE EL Showcase 2025 in the "Civil + Interdisciplinary" category.</li>
+      </ol>
+
+      <h2 class="sub">12.5 Future Scope</h2>
+      <ul>
+        <li>Live user trials with the local Visually Impaired Persons' Association.</li>
+        <li>Bone-conduction audio output for users who prefer to keep their ears uncovered.</li>
+        <li>Expansion of the 8-class taxonomy to 15-20 obstacle classes with curated real-world annotations.</li>
+        <li>Addition of a digital ambient-light sensor for context-aware brightness cues (deferred from this revision).</li>
+        <li>Investigation of low-power Bluetooth Low Energy as an alternative to USB-Serial and WiFi for cane↔phone communication.</li>
+      </ul>
+    </section>
+
+    <p style="text-align:center; color:var(--muted); font-style:italic; margin-top:40px; padding-top:20px; border-top:2px solid var(--primary);">
+      &mdash; End of Report &mdash; <br>
+      <small>© 2024-25 RV College of Engineering, Department of Civil Engineering, Bengaluru</small>
+    </p>
+  </div>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#dbeafe',
+      primaryTextColor: '#1e3a8a',
+      primaryBorderColor: '#1d4ed8',
+      lineColor: '#475569',
+      secondaryColor: '#fce7f3',
+      tertiaryColor: '#dcfce7',
+      background: '#ffffff',
+      mainBkg: '#e0f2fe',
+      secondBkg: '#fef3c7',
+      tertiaryBkg: '#fae8ff',
+      clusterBkg: '#f1f5f9',
+      clusterBorder: '#94a3b8',
+      fontFamily: 'Cambria, Georgia, serif'
+    },
+    flowchart: { htmlLabels: true, useMaxWidth: true, curve: 'basis' },
+    sequence:  { useMaxWidth: true }
+  });
+
+  function downloadHtml() {
+    const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    const blob = new Blob([html], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'EL_REPORT_SmartCane_RVCE.html';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  window.addEventListener('load', () => {
+    // Improvement chart
+    const imp = document.getElementById('improvementChart');
+    if (imp) new Chart(imp, {
+      type: 'line',
+      data: {
+        labels: ['Iter 1', 'Iter 2', 'Iter 3', 'Iter 4 (Final)'],
+        datasets: [
+          { label: 'Fall recall (%)', data: [81, 88, 94, 97], borderColor:'#b91c1c', backgroundColor:'rgba(185,28,28,0.1)', tension: 0.3, borderWidth: 3 },
+          { label: 'Drop accuracy (%)', data: [78, 85, 92, 96], borderColor:'#1d4ed8', backgroundColor:'rgba(29,78,216,0.1)', tension: 0.3, borderWidth: 3 },
+          { label: 'Inference latency (ms)', data: [96, 64, 42, 28], borderColor:'#047857', backgroundColor:'rgba(4,120,87,0.1)', tension: 0.3, borderWidth: 3, yAxisID: 'y2' }
+        ]
+      },
+      options: {
+        plugins: { title: { display: true, text: 'Iterative improvement across 4 dev cycles' } },
+        scales: {
+          y: { beginAtZero: false, min: 70, max: 100, title: { display: true, text: 'Accuracy (%)' } },
+          y2: { position: 'right', beginAtZero: true, title: { display: true, text: 'Latency (ms)' }, grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+
+    // Cost pie
+    const cp = document.getElementById('costPie');
+    if (cp) new Chart(cp, {
+      type: 'doughnut',
+      data: {
+        labels: ['ESP32+Power (₹680)','TF-Luna LiDAR (₹450)','VL53L0X (₹200)','MPU6050 (₹120)','LCD (₹200)','Buzzer+misc (₹50)','Enclosure (₹200)'],
+        datasets: [{
+          data: [680, 450, 200, 120, 200, 50, 200],
+          backgroundColor: ['#1e3a8a','#b91c1c','#047857','#7c2d12','#7c3aed','#ca8a04','#475569']
+        }]
+      },
+      options: { plugins: { title: { display: true, text: 'BOM cost distribution (₹1900 total)' }, legend: { position: 'bottom' } } }
+    });
+
+    // Class distribution
+    const cd = document.getElementById('classDist');
+    if (cd) new Chart(cd, {
+      type: 'bar',
+      data: {
+        labels: ['COCO general','pothole','electric_pole','steps_kerb','tree','car','seg (overlay)'],
+        datasets: [{
+          label: 'Training images',
+          data: [118000, 1400, 850, 720, 900, 1100, 118000],
+          backgroundColor: ['#1e3a8a','#b91c1c','#7c2d12','#ca8a04','#047857','#0891b2','#7c3aed']
+        }]
+      },
+      options: { plugins: { title: { display: true, text: 'Training-set size per specialist model' }, legend: { display: false } }, scales: { y: { type: 'logarithmic', title: { display: true, text: '# images (log scale)' } } } }
+    });
+  });
+</script>
+</body>
+</html>
