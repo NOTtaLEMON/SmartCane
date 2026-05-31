@@ -261,21 +261,21 @@ flowchart LR
   <p class="caption">End-to-end packet flow from ESP32 to user audio + SMS.</p>
   <div class="mermaid">
 sequenceDiagram
-    participant ESP as ESP32 Firmware
-    participant PKT as Packet "fwd,drop,fall"
-    participant AND as Android CaneSosService
-    participant VIS as CaneVisionActivity (TFLite)
-    participant USR as User (Audio / SMS)
-    participant PY as Python Dashboard
-    ESP->>PKT: Publish @ 10 Hz (Serial + WebSocket :81)
-    PKT->>AND: Parse → Packet(distFwd, distDrop, fallFlag)
-    PKT->>PY:  Parse → zone band + charts
+    participant ESP as ESP32
+    participant PKT as Packet
+    participant AND as Android Service
+    participant VIS as Vision Activity
+    participant USR as User
+    participant PY as Dashboard
+    ESP->>PKT: Publish at 10 Hz via Serial + WebSocket 81
+    PKT->>AND: Parse to Packet distFwd, distDrop, fallFlag
+    PKT->>PY: Parse to zone band + charts
     AND->>AND: Fall flag raised?
-    AND->>USR: SMS SOS + GPS (60 s cooldown)
+    AND->>USR: SMS SOS + GPS, 60 s cooldown
     AND->>VIS: LocalBroadcast sensor data
-    VIS->>VIS: CameraX frame → 7× YOLOv8 TFLite inference
-    VIS->>USR: TTS top-1 (2-frame streak · 1 s cooldown · conf ≥ 0.60)
-    PY->>USR:  Zone banner + trend charts
+    VIS->>VIS: Camera frame to 7x YOLOv8 TFLite inference
+    VIS->>USR: TTS top-1, 2-frame streak, 1 s cooldown, conf >= 0.60
+    PY->>USR: Zone banner + trend charts
   </div>
 </section>
 
@@ -311,15 +311,15 @@ flowchart TD
   <p class="caption">Fall always wins; LiDAR distance bands next; ToF drop last.</p>
   <div class="mermaid">
 flowchart TD
-    READ([Sensor tick]) --> Q1{Fall?<br/>|accel| &gt; 26000}
+    READ([Sensor tick]) --> Q1{"Fall?<br/>aMag &gt; 26000"}
     Q1 -->|Yes| FALL["P1 · FALL<br/>Buzzer continuous 5 s<br/>LCD: FALL · LED ON"]:::p1
     Q1 -->|No| Q2{LiDAR distance}
-    Q2 -->|0–50 cm|   O1["P2a · Fast beeps<br/>Critical"]:::p2
-    Q2 -->|51–100 cm| O2["P2b · Medium beeps<br/>Warning"]:::p2
-    Q2 -->|101–150 cm|O3["P2c · Slow beeps<br/>Caution"]:::p2
-    Q2 -->|&gt; 150 cm| Q3{ToF &gt; 400 mm?<br/>(ground gone)}
+    Q2 -->|0 to 50 cm| O1["P2a · Fast beeps<br/>Critical"]:::p2
+    Q2 -->|51 to 100 cm| O2["P2b · Medium beeps<br/>Warning"]:::p2
+    Q2 -->|101 to 150 cm| O3["P2c · Slow beeps<br/>Caution"]:::p2
+    Q2 -->|over 150 cm| Q3{"ToF &gt; 400 mm?<br/>(ground gone)"}
     Q3 -->|Yes| DROP["P3 · Drop warning<br/>Path clear, step ahead"]:::p3
-    Q3 -->|No|  SAFE["Silent<br/>LCD: SAFE"]:::ok
+    Q3 -->|No| SAFE["Silent<br/>LCD: SAFE"]:::ok
     classDef p1 fill:#fca5a5,stroke:#b91c1c,color:#7f1d1d,stroke-width:2px
     classDef p2 fill:#fdba74,stroke:#c2410c,color:#7c2d12,stroke-width:2px
     classDef p3 fill:#fcd34d,stroke:#b45309,color:#78350f,stroke-width:2px
@@ -335,19 +335,22 @@ flowchart TD
 graph TB
     subgraph PERMS["Permission Layer (MainActivity)"]
         REQ["Runtime Permission Request<br/>API-aware: BLE · Notifications · SMS · Camera"]
-        GRANT{All Granted?}
+        GRANT{"All Granted?"}
         REQ --> GRANT
     end
     subgraph SVC["CaneSosService (Foreground)"]
         WC["OkHttp WebSocket<br/>client to ESP32 :81"]
         PARSE["Packet Parser<br/>fwd,drop,fall"]
         FUSE["FusedLocation"]
-        FALL_CHK{fall == 1?}
-        COOL{60 s cooldown?}
+        FALL_CHK{"fall == 1?"}
+        COOL{"60 s cooldown?"}
         SMS_SEND["SmsManager<br/>SOS + GPS"]
         LB["LocalBroadcast<br/>ACTION_SENSOR_DATA"]
-        WC --> PARSE --> FALL_CHK
-        FALL_CHK -->|Yes| COOL -->|Yes| FUSE --> SMS_SEND
+        WC --> PARSE
+        PARSE --> FALL_CHK
+        FALL_CHK -->|Yes| COOL
+        COOL -->|Yes| FUSE
+        FUSE --> SMS_SEND
         FALL_CHK -->|No| LB
         SMS_SEND --> LB
     end
@@ -382,23 +385,23 @@ graph TB
   <p class="caption">Model auto-detection + GPU/CPU fallback path.</p>
   <div class="mermaid">
 flowchart TD
-    A([loadModel called]) --> B[Scan MODEL_CANDIDATES<br/>smartcane_seg · yolov8n_seg<br/>yolov8n · pothole_detector …]
-    B --> C{Asset exists<br/>&amp; size &gt; 1 KB?}
+    A([loadModel called]) --> B["Scan MODEL_CANDIDATES<br/>smartcane_seg · yolov8n_seg<br/>yolov8n · pothole_detector …"]
+    B --> C{"Asset exists<br/>and size &gt; 1 KB?"}
     C -->|No| B
     C -->|Yes| D[Load TFLite FlatBuffer]
     D --> E[Try GpuDelegate]
-    E --> F{GPU OK?}
+    E --> F{"GPU OK?"}
     F -->|Yes| G[GPU · 4 threads]
-    F -->|No|  H[CPU fallback · 4 threads]
-    G --> I[Run inference 320×320 float32]
+    F -->|No| H[CPU fallback · 4 threads]
+    G --> I["Run inference 320×320 float32"]
     H --> I
     I --> J[Inspect output shape]
-    J --> K{channels == 116?}
+    J --> K{"channels == 116?"}
     K -->|Yes| L[Seg head<br/>32 proto masks]
-    K -->|No 84| M[Detection head<br/>4 bbox + class scores]
-    L --> N{8 or 80 classes?}
+    K -->|No 84| M["Detection head<br/>4 bbox + class scores"]
+    L --> N{"8 or 80 classes?"}
     M --> N
-    N -->|Custom 8| O[Per-hazard model<br/>thresh ≥ 0.60]
+    N -->|Custom 8| O["Per-hazard model<br/>thresh ≥ 0.60"]
     N -->|COCO 80| P[COCO_LABELS<br/>default 0.40]
     O --> Q[NMS · IoU 0.45]
     P --> Q
@@ -426,14 +429,14 @@ flowchart TD
   <div class="mermaid">
 flowchart LR
     A[ESP32 packet<br/>WebSocket frame] --> B[Parse fall_flag]
-    B --> C{fall == 1?}
+    B --> C{"fall == 1?"}
     C -->|No| D[Broadcast sensor<br/>to dashboard]
-    C -->|Yes| E{Cooldown<br/>60 s elapsed?}
+    C -->|Yes| E{"Cooldown<br/>60 s elapsed?"}
     E -->|No| F[Suppress<br/>duplicate]
     E -->|Yes| G[Request GPS<br/>FusedLocation]
-    G --> H{Location ok?}
-    H -->|Yes| I[Compose SMS<br/>Fall detected!<br/>lat,lng + time]
-    H -->|No|  J[Compose SMS<br/>Fall detected!<br/>(no location)]
+    G --> H{"Location ok?"}
+    H -->|Yes| I["Compose SMS<br/>Fall detected<br/>lat,lng + time"]
+    H -->|No| J["Compose SMS<br/>Fall detected<br/>(no location)"]
     I --> K[SmsManager send<br/>to all contacts]
     J --> K
     K --> L[Reset cooldown<br/>timer 60 s] --> D
@@ -456,14 +459,14 @@ flowchart LR
   <div class="mermaid">
 flowchart TD
     A([Define obstacle classes]) --> B[8-class taxonomy<br/>person · vehicle · pothole<br/>tree · pole · steps · car · clear]
-    B --> C{Real labelled<br/>data?}
-    C -->|No| D[generate_sample_dataset.py<br/>Synthetic masks<br/>(validate pipeline)]
+    B --> C{"Real labelled<br/>data?"}
+    C -->|No| D["generate_sample_dataset.py<br/>Synthetic masks<br/>(validate pipeline)"]
     C -->|Yes| E
     D --> E[prepare_*_dataset.py<br/>Roboflow → YOLO format]
     E --> F[Dataset YAML<br/>train/val/test split]
-    F --> G{Model type?}
-    G -->|Detection| H[train_obstacle_models.py<br/>YOLOv8n · 50 ep · imgsz 320]
-    G -->|Segmentation| I[train_custom_segmentation.py<br/>YOLOv8n-seg · 100 ep]
+    F --> G{"Model type?"}
+    G -->|Detection| H["train_obstacle_models.py<br/>YOLOv8n · 50 ep · imgsz 320"]
+    G -->|Segmentation| I["train_custom_segmentation.py<br/>YOLOv8n-seg · 100 ep"]
     H --> J[runs/detect/<br/>best.pt]
     I --> K[runs/segment/<br/>best.pt]
     J --> L[export_yolo_tflite.py<br/>→ float16 320 ~6 MB]
@@ -471,8 +474,9 @@ flowchart TD
     L --> P[Copy → android-app/<br/>app/src/main/assets/]
     M --> P
     P --> Q[gradlew assembleDebug]
-    Q --> R{BUILD OK?}
-    R -->|No| S[Check shape<br/>+ label count] --> P
+    Q --> R{"BUILD OK?"}
+    R -->|No| S[Check shape<br/>+ label count]
+    S --> P
     R -->|Yes| T[APK · 7 models bundled]
     T --> U[adb install + logcat]
     classDef data   fill:#bfdbfe,stroke:#1d4ed8,color:#1e3a8a,stroke-width:2px
