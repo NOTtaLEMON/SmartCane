@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Cane Clip-On — Full Project Report</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --accent: #2563eb;
+    --accent2: #7c3aed;
+    --accent3: #059669;
+    --accent4: #dc2626;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --warn: #f59e0b;
+    --info: #0ea5e9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 15px;
+  }
+
+  /* ===== HEADER ===== */
+  .hero {
+    background: linear-gradient(135deg, #1e293b 0%, #1e3a5f 50%, #0f172a 100%);
+    color: white;
+    padding: 60px 40px 50px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle at 30% 40%, rgba(37,99,235,0.15) 0%, transparent 60%),
+                radial-gradient(circle at 70% 60%, rgba(124,58,237,0.1) 0%, transparent 60%);
+    animation: pulse 8s ease-in-out infinite alternate;
+  }
+  @keyframes pulse { 0% { transform: scale(1); } 100% { transform: scale(1.1); } }
+  .hero-content { position: relative; z-index: 1; }
+  .hero h1 { font-size: 2.6rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 10px; }
+  .hero h1 span { color: #60a5fa; }
+  .hero .subtitle { font-size: 1.1rem; color: #94a3b8; max-width: 700px; margin: 0 auto 20px; }
+  .hero .tags { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+  .tag {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #e2e8f0;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .tag.blue { background: rgba(37,99,235,0.3); border-color: #3b82f6; color: #93c5fd; }
+  .tag.purple { background: rgba(124,58,237,0.3); border-color: #8b5cf6; color: #c4b5fd; }
+  .tag.green { background: rgba(5,150,105,0.3); border-color: #10b981; color: #6ee7b7; }
+
+  /* ===== LAYOUT ===== */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+  .section { padding: 60px 0; }
+  .section + .section { border-top: 1px solid var(--border); }
+
+  /* ===== NAV ===== */
+  .toc {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 32px;
+    margin: 30px 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 8px 24px;
+  }
+  .toc h3 { grid-column: 1/-1; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
+  .toc a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    transition: color 0.2s;
+  }
+  .toc a::before { content: '→'; font-size: 0.75rem; opacity: 0.5; }
+  .toc a:hover { color: var(--accent2); }
+
+  /* ===== SECTION HEADINGS ===== */
+  .sec-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 30px;
+  }
+  .sec-icon {
+    width: 46px; height: 46px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+  .sec-icon.blue { background: #eff6ff; }
+  .sec-icon.purple { background: #f5f3ff; }
+  .sec-icon.green { background: #ecfdf5; }
+  .sec-icon.orange { background: #fff7ed; }
+  .sec-icon.red { background: #fef2f2; }
+  h2.sec-title { font-size: 1.6rem; font-weight: 700; color: var(--text); }
+  h3.sub-title { font-size: 1.15rem; font-weight: 700; color: var(--text); margin: 28px 0 14px; }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 24px;
+    text-align: center;
+  }
+  .stat-card .num { font-size: 2rem; font-weight: 800; color: var(--accent); }
+  .stat-card .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+  /* ===== TABLES ===== */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    margin: 14px 0;
+    background: var(--card);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  th {
+    background: #f1f5f9;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    padding: 10px 14px;
+    text-align: left;
+  }
+  td { padding: 10px 14px; border-top: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: #f8fafc; }
+  code { background: #f1f5f9; color: #e11d48; padding: 1px 5px; border-radius: 4px; font-size: 0.85em; font-family: 'Cascadia Code', 'Fira Code', monospace; }
+
+  /* ===== BADGES ===== */
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-orange { background: #ffedd5; color: #9a3412; }
+  .badge-purple { background: #f3e8ff; color: #6b21a8; }
+
+  /* ===== DIAGRAMS ===== */
+  .mermaid-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    margin: 20px 0;
+    overflow-x: auto;
+    text-align: center;
+  }
+  .mermaid-wrap .diagram-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 18px;
+    text-align: left;
+  }
+  .mermaid { min-width: 400px; }
+
+  /* ===== TIMELINE ===== */
+  .timeline { position: relative; padding-left: 32px; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px; top: 0; bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--accent), var(--accent2));
+  }
+  .timeline-item { position: relative; margin-bottom: 28px; }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -26px; top: 6px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .timeline-item h4 { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+  .timeline-item p { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+  .timeline-item .phase { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); margin-bottom: 4px; }
+
+  /* ===== CHALLENGE CARDS ===== */
+  .challenge-list { display: flex; flex-direction: column; gap: 14px; }
+  .challenge-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  .challenge-icon { font-size: 1.5rem; }
+  .challenge-item h4 { font-size: 0.9rem; font-weight: 700; color: var(--accent4); margin-bottom: 4px; }
+  .challenge-item p { font-size: 0.85rem; color: var(--muted); }
+  .challenge-item .resolution { font-size: 0.82rem; color: var(--accent3); margin-top: 6px; font-weight: 600; }
+  .challenge-item .resolution::before { content: '✓ Fix: '; }
+
+  /* ===== TOOL GRID ===== */
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    margin: 16px 0;
+  }
+  .tool-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.82rem;
+  }
+  .tool-item .tool-name { font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .tool-item .tool-role { color: var(--muted); font-size: 0.77rem; }
+
+  /* ===== CODE BLOCK ===== */
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 10px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    font-size: 0.82rem;
+    font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+    line-height: 1.6;
+    margin: 12px 0;
+  }
+  pre .kw { color: #7dd3fc; }
+  pre .str { color: #86efac; }
+  pre .cmt { color: #64748b; font-style: italic; }
+  pre .num { color: #fca5a5; }
+
+  /* ===== ALERTS ===== */
+  .alert {
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 0.88rem;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .alert-info { background: #eff6ff; border-left: 3px solid var(--info); color: #1e3a5f; }
+  .alert-warn { background: #fffbeb; border-left: 3px solid var(--warn); color: #78350f; }
+  .alert-success { background: #f0fdf4; border-left: 3px solid var(--accent3); color: #14532d; }
+
+  /* ===== FOOTER ===== */
+  footer {
+    background: #0f172a;
+    color: #475569;
+    text-align: center;
+    padding: 30px 20px;
+    font-size: 0.85rem;
+    margin-top: 60px;
+  }
+  footer span { color: #60a5fa; }
+
+  /* ===== PRINT ===== */
+  @media print {
+    .hero { break-after: page; }
+    .section { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ HERO ============================================================ -->
+<header class="hero">
+  <div class="hero-content">
+    <p style="font-size:0.8rem;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;margin-bottom:10px;">Final Year Design Project — SEM2EL</p>
+    <h1>Smart Cane <span>Clip-On</span></h1>
+    <p class="subtitle">Assistive Navigation System for the Visually Impaired — ESP32 Sensor Cluster + Android Gateway + Python ML Pipeline</p>
+    <div class="tags">
+      <span class="tag blue">ESP32 / Arduino</span>
+      <span class="tag purple">Android / Kotlin</span>
+      <span class="tag green">YOLOv8 / TFLite</span>
+      <span class="tag">Python / Streamlit</span>
+      <span class="tag">TF-Luna LiDAR</span>
+      <span class="tag">Computer Vision</span>
+      <span class="tag">Fall Detection</span>
+      <span class="tag">SOS / SMS</span>
+    </div>
+    <p style="font-size:0.8rem;color:#475569;margin-top:24px;">Report Date: May 2026 &nbsp;|&nbsp; Repository: SEM2EL</p>
+  </div>
+</header>
+
+<!-- ============================================================ CONTAINER ============================================================ -->
+<div class="container">
+
+  <!-- TABLE OF CONTENTS -->
+  <nav class="toc">
+    <h3>Contents</h3>
+    <a href="#exec">1. Executive Summary</a>
+    <a href="#system-arch">2. System Architecture</a>
+    <a href="#hardware">3. Hardware Subsystem</a>
+    <a href="#hw-flow">4. Hardware Data Flow</a>
+    <a href="#software">5. Software Subsystem</a>
+    <a href="#android-flow">6. Android App Architecture</a>
+    <a href="#ml-pipeline">7. ML Model Pipeline</a>
+    <a href="#dashboard">8. Python Dashboard & Vision</a>
+    <a href="#development-flow">9. Development Workflow</a>
+    <a href="#challenges">10. Challenges Faced</a>
+    <a href="#tools">11. Tools & Technologies</a>
+    <a href="#status">12. Current Status</a>
+  </nav>
+
+  <!-- ================================================================ SECTION 1: EXECUTIVE SUMMARY ================================================================ -->
+  <section class="section" id="exec">
+    <div class="sec-header">
+      <div class="sec-icon blue">📋</div>
+      <h2 class="sec-title">1. Executive Summary</h2>
+    </div>
+
+    <div class="card-grid">
+      <div class="stat-card">
+        <div class="num">3</div>
+        <div class="label">System Modules</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">7</div>
+        <div class="label">Hazard Classes (Specialized)</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">7</div>
+        <div class="label">TFLite Models Shipped<br/><span style="font-size:0.6em;color:var(--muted);">(run in parallel)</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="num">10 Hz</div>
+        <div class="label">Sensor Streaming Rate</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">320px</div>
+        <div class="label">ML Inference Resolution</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">~6 MB</div>
+        <div class="label">Per TFLite Model Size</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p>The <strong>Smart Cane Clip-On</strong> is a modular electronic augmentation for a standard white cane. It attaches sensor electronics to an existing cane and connects wirelessly to a smartphone, providing real-time obstacle detection, drop/step warnings, fall-triggered SOS alerting, and on-device computer vision — all without requiring the user to purchase specialised hardware beyond a modern Android phone.</p>
+
+      <h3 class="sub-title">Three Loosely Coupled Modules</h3>
+      <div class="card-grid" style="margin-top:0;">
+        <div class="card" style="border-left: 4px solid #2563eb; margin-bottom:0;">
+          <strong>Module A — Sensor Cane (ESP32)</strong><br/>
+          <span class="badge badge-blue">Firmware</span>
+          <p style="margin-top:8px;font-size:0.85rem;color:var(--muted);">TF-Luna LiDAR (forward) + VL53L0X ToF (downward) + MPU6050 IMU. Streams <code>dist_fwd,dist_drop,fall_flag</code> at 10 Hz over USB serial or WiFi WebSocket. Powered by a 3.7 V Li-ion cell through an MT3608 boost converter.</p>
+        </div>
+        <div class="card" style="border-left: 4px solid #7c3aed; margin-bottom:0;">
+          <strong>Module B — Android Gateway</strong><br/>
+          <span class="badge badge-purple">Kotlin / Android</span>
+          <p style="margin-top:8px;font-size:0.85rem;color:var(--muted);">Receives ESP32 packets, raises SMS SOS on fall, and runs on-device YOLOv8 TFLite pipeline (CameraX) for obstacle detection with TTS callouts.</p>
+        </div>
+        <div class="card" style="border-left: 4px solid #059669; margin-bottom:0;">
+          <strong>Module C — Python Vision / Dashboard</strong><br/>
+          <span class="badge badge-green">Python / ML</span>
+          <p style="margin-top:8px;font-size:0.85rem;color:var(--muted);">Streamlit dashboard for live monitoring; <code>Universal_Vision.py</code> for IP-webcam YOLOv8; training pipelines producing the TFLite models deployed to Android.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ SECTION 2: SYSTEM ARCHITECTURE ================================================================ -->
+  <section class="section" id="system-arch">
+    <div class="sec-header">
+      <div class="sec-icon purple">🏗️</div>
+      <h2 class="sec-title">2. System Architecture</h2>
+    </div>
+
+    <p style="margin-bottom:18px;">The Smart Cane Clip-On is built as <strong>three loosely-coupled modules</strong> that communicate through small, well-defined message contracts rather than direct function calls. This separation is deliberate — it means the firmware can be debugged on a benchtop with USB serial, the Android app can be developed against the Mock data source without any hardware present, and the Python training pipeline produces models that drop into the Android <code>assets/</code> folder as opaque files. No module needs to know the internal state of any other.</p>
+
+    <p style="margin-bottom:18px;">The diagram below captures this at a glance: each coloured cluster is a self-contained codebase with its own build system, deploy mechanism, and test loop. The arrows crossing module boundaries represent <em>only</em> the on-the-wire data formats (a 3-field CSV packet, a TFLite flatbuffer, and a WebSocket frame) — there is no shared library or RPC boundary between them.</p>
+
+    <div class="mermaid-wrap">
+      <div class="diagram-title">High-Level Overview — Three Modules, Three Contracts</div>
+      <div class="mermaid">
+graph LR
+    A([🦯 ESP32<br/>Sensor Cane]):::esp -->|CSV packet<br/>10 Hz| B([📱 Android<br/>Gateway App]):::and
+    A -->|CSV packet<br/>WebSocket| C([💻 Python<br/>Dashboard]):::py
+    C -.->|TFLite model<br/>copy to assets| B
+    B -->|🔊 TTS<br/>📩 SMS SOS<br/>📳 Haptics| U([👤 User &<br/>Caregivers]):::user
+
+    classDef esp fill:#fde68a,stroke:#d97706,stroke-width:3px,color:#78350f
+    classDef and fill:#c4b5fd,stroke:#7c3aed,stroke-width:3px,color:#2e1065
+    classDef py fill:#86efac,stroke:#059669,stroke-width:3px,color:#064e3b
+    classDef user fill:#fca5a5,stroke:#dc2626,stroke-width:3px,color:#7f1d1d
+      </div>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="diagram-title">Detailed System Architecture — All Subsystems &amp; Interfaces</div>
+      <div class="mermaid">
+graph TB
+    subgraph HW["🔧 Module A · ESP32 Sensor Cane"]
+        direction TB
+        LUNA["TF-Luna LiDAR\nForward range\nUART2"]
+        TOF["VL53L0X ToF\nDrop detection\nI2C 0x29"]
+        IMU["MPU6050 IMU\nFall detection\nI2C 0x68"]
+        FW["ESP32 Firmware\nNon-blocking loop\n@ 50 ms"]
+        LCD["16×2 LCD\nI2C 0x27"]
+        BUZ["Buzzer\nGPIO4"]
+        WS["WebSocket :81\n(WiFi)"]
+        SER["USB Serial\n115200 baud"]
+        LUNA --> FW
+        TOF --> FW
+        IMU --> FW
+        FW --> LCD
+        FW --> BUZ
+        FW --> WS
+        FW --> SER
+    end
+
+    subgraph AND["📱 Module B · Android SmartCane App"]
+        direction TB
+        SVC["SosService\nForeground service"]
+        CAM["CameraX\n30 fps"]
+        DET["7× TFLite detectors\nin parallel"]
+        TTS["TextToSpeech\ntop-1 · 1.5s · ≥0.75"]
+        SMS["SmsManager SOS\n60s cooldown"]
+        DASH["PhoneDashboard"]
+        SVC -->|LocalBroadcast| DASH
+        CAM --> DET
+        DET --> TTS
+        SVC -->|fall flag| SMS
+    end
+
+    subgraph PY["🐍 Module C · Python Dev Tools"]
+        direction TB
+        STRL["Streamlit Dashboard\nSerial · WiFi · Mock"]
+        UV["Universal_Vision.py\nIP-Webcam runner"]
+        TRAIN["YOLOv8 training\n+ TFLite export"]
+        TRAIN -->|.tflite assets| AND
+    end
+
+    WS -->|WiFi WebSocket| SVC
+    WS -->|WiFi WebSocket| STRL
+    SER -->|USB Serial| STRL
+
+    style HW fill:#fef3c7,stroke:#d97706,stroke-width:3px,color:#78350f
+    style AND fill:#ede9fe,stroke:#7c3aed,stroke-width:3px,color:#2e1065
+    style PY fill:#d1fae5,stroke:#059669,stroke-width:3px,color:#064e3b
+
+    classDef sensor fill:#fde68a,stroke:#b45309,color:#78350f
+    classDef proc fill:#fbcfe8,stroke:#be185d,color:#831843
+    classDef out fill:#bbf7d0,stroke:#15803d,color:#14532d
+    classDef net fill:#bfdbfe,stroke:#1d4ed8,color:#1e3a8a
+    classDef ml fill:#fecaca,stroke:#b91c1c,color:#7f1d1d
+
+    class LUNA,TOF,IMU sensor
+    class FW,SVC,STRL proc
+    class LCD,BUZ,TTS,DASH out
+    class WS,SER,CAM net
+    class DET,TRAIN,UV ml
+      </div>
+    </div>
+
+    <p style="margin-top:24px;">The data path is straightforward: <strong>three sensors → ESP32 → wire format → phone → user feedback</strong>. Computer vision lives only on the phone; the cane itself runs no ML. This split keeps the cane light, cheap, and battery-friendly while giving the AI workload a far more capable processor than any MCU we could afford to put on the cane.</p>
+
+    <div class="mermaid-wrap">
+      <div class="diagram-title">Data Protocol Flow</div>
+      <div class="mermaid">
+sequenceDiagram
+    participant ESP as ESP32 Firmware
+    participant PKT as Packet "dist_fwd,dist_drop,fall_flag"
+    participant AND as Android CaneSosService
+    participant VIS as CaneVisionActivity (TFLite)
+    participant USR as User (Audio / SMS)
+    participant PY as Python Dashboard
+
+    ESP->>PKT: Publish @ 10 Hz via Serial or WebSocket :81
+    PKT->>AND: Parse → Packet(distFwd, distDrop, fallFlag)
+    PKT->>PY: Parse → zone band + charts
+    AND->>AND: Fall flag raised?
+    AND->>USR: SMS SOS + GPS (60s cooldown)
+    AND->>VIS: LocalBroadcast sensor data
+    VIS->>VIS: CameraX frame → YOLOv8 TFLite inference
+    VIS->>USR: TTS "Person detected" (top-1 per frame · 1.5s cooldown · conf ≥ 0.75)
+    PY->>USR: Zone banner + trend charts on screen
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ SECTION 3: HARDWARE ================================================================ -->
+  <section class="section" id="hardware">
+    <div class="sec-header">
+      <div class="sec-icon orange">⚙️</div>
+      <h2 class="sec-title">3. Hardware Subsystem</h2>
+    </div>
+
+    <p>The cane's electronics centre on a single <strong>ESP32 DevKit</strong> that reads three sensors, drives a buzzer + LCD for local feedback, and broadcasts a packet over either USB serial or WiFi WebSocket. The whole board is powered by a 3.7 V Li-ion cell stepped up to 5 V by an MT3608 boost converter, switched on/off by a panel-mounted KD slide switch, and housed in a 150 × 150 × 70 mm ABS enclosure that mounts to a standard white cane. Total parts cost sits well under ₹2,000.</p>
+
+    <p>The three sensors cover three distinct physical signals so that none of them duplicate information. <strong>TF-Luna LiDAR</strong> points forward and reports obstacle distance up to several metres. <strong>VL53L0X ToF</strong> points downward and reports ground distance, so a sudden increase means a step, kerb or pit. <strong>MPU6050 IMU</strong> tracks the cane's own acceleration, so a sharp spike means the cane has been dropped or the user has fallen. The earlier prototype also carried an LDR for ambient-light sensing, but it was removed once the design settled — the smartphone's own light sensor (and the user's TTS feedback) made the on-cane LDR redundant.</p>
+
+    <h3 class="sub-title">Bill of Materials</h3>
+    <table>
+      <thead>
+        <tr><th>Component</th><th>Role</th><th>Interface / Pin</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>ESP32 DevKit</strong></td><td>Main controller, WiFi, dual-core 240 MHz</td><td>—</td></tr>
+        <tr><td><strong>TF-Luna LiDAR</strong></td><td>Forward obstacle distance</td><td>UART2 @ 115200 (RX16 / TX17)</td></tr>
+        <tr><td><strong>VL53L0X ToF</strong></td><td>Downward drop / step / pit detection</td><td>I2C 0x29 (SDA21 / SCL22)</td></tr>
+        <tr><td><strong>MPU6050 IMU</strong></td><td>Fall detection (raw accel magnitude)</td><td>I2C 0x68 (SDA21 / SCL22)</td></tr>
+        <tr><td><strong>16×2 LCD</strong></td><td>On-cane status display (F / D / SAFE-FALL)</td><td>I2C 0x27 (SDA21 / SCL22)</td></tr>
+        <tr><td><strong>Active buzzer</strong></td><td>Priority-based audible alerts</td><td>GPIO4</td></tr>
+        <tr><td><strong>3.7 V Li-ion cell</strong></td><td>Portable power source</td><td>—</td></tr>
+        <tr><td><strong>MT3608 boost converter</strong></td><td>Steps 3.7 V battery → stable 5 V for ESP32 + peripherals</td><td>—</td></tr>
+        <tr><td><strong>KD slide switch</strong></td><td>Master ON / OFF on the battery line</td><td>—</td></tr>
+        <tr><td><strong>ABS enclosure</strong></td><td>150 × 150 × 70 mm housing with sensor cutouts</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub-title">Alert Thresholds (Firmware Constants)</h3>
+    <table>
+      <thead>
+        <tr><th>Sensor</th><th>Condition</th><th>Buzzer Response</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>MPU6050</td><td>|accel|² sum &gt; <code>24000</code></td><td>Continuous tone for <strong>5 s</strong> (Fall)</td></tr>
+        <tr><td>TF-Luna</td><td>0 – 500 mm</td><td>Fast beeps (Critical)</td></tr>
+        <tr><td>TF-Luna</td><td>500 – 1000 mm</td><td>Medium beeps (Warning)</td></tr>
+        <tr><td>TF-Luna</td><td>1000 – 1500 mm</td><td>Slow beeps (Caution)</td></tr>
+        <tr><td>TF-Luna</td><td>&gt; 1500 mm</td><td>No LiDAR alert</td></tr>
+        <tr><td>VL53L0X + TF-Luna</td><td>TOF &gt; 400 mm <em>and</em> LiDAR ≥ 1500 mm</td><td>Drop warning beeps (path clear, ground gone)</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub-title">Power Flow</h3>
+    <div class="mermaid-wrap">
+      <div class="mermaid">
+flowchart LR
+    BAT(["3.7 V Li-ion\nbattery"]):::bat --> SW{{"KD slide switch\nON / OFF"}}:::sw
+    SW --> MT["MT3608 boost\n3.7 V → 5 V"]:::boost
+    MT --> ESP(["ESP32 + sensors\n+ LCD + buzzer"]):::load
+    classDef bat fill:#fde68a,stroke:#b45309,stroke-width:2px,color:#78350f
+    classDef sw fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
+    classDef boost fill:#bfdbfe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
+    classDef load fill:#bbf7d0,stroke:#15803d,stroke-width:2px,color:#14532d
+      </div>
+    </div>
+
+    <h3 class="sub-title">Firmware Architecture</h3>
+    <div class="card">
+      <p>Two firmware variants are maintained side-by-side:</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px;">
+        <div class="card" style="border-left:4px solid #2563eb;margin-bottom:0;">
+          <strong>Cane_Firmware.ino</strong><br/>
+          <span class="badge badge-blue">Serial Baseline</span>
+          <p style="margin-top:8px;font-size:0.83rem;color:var(--muted);">USB Serial only. Outputs <code>dist_fwd,dist_drop,fall_flag</code> at 10 Hz on Serial @ 115200. Zero WiFi overhead — maximum determinism for benchtop testing.</p>
+        </div>
+        <div class="card" style="border-left:4px solid #7c3aed;margin-bottom:0;">
+          <strong>Cane_Firmware_WiFi.ino</strong><br/>
+          <span class="badge badge-purple">WiFi v2.1</span>
+          <p style="margin-top:8px;font-size:0.83rem;color:var(--muted);">Adds <code>WiFi.h</code> + <code>WebSocketsServer</code> on port 81. Broadcasts the same packet to all connected clients. Non-blocking WiFi reconnect via <code>lastWifiRetry</code> gate.</p>
+        </div>
+      </div>
+
+      <h3 class="sub-title">Key Firmware Design Decisions</h3>
+      <div class="challenge-list">
+        <div class="challenge-item">
+          <div class="challenge-icon">⏱️</div>
+          <div>
+            <h4>Non-blocking Main Loop</h4>
+            <p>Single <code>LOOP_MS = 50</code> cadence drives all sensors. WiFi reconnect, buzzer toggling, and LCD IP refresh are time-gated via <code>millis()</code> checkpoints (<code>lastTick</code>, <code>lastWifiRetry</code>, <code>lastBuzzerOff</code>, <code>lastIPDisplay</code>). A single slow sensor cannot stall the others.</p>
+          </div>
+        </div>
+        <div class="challenge-item">
+          <div class="challenge-icon">🔔</div>
+          <div>
+            <h4>Priority-Based Buzzer Logic</h4>
+            <p>Three alert sources arbitrated in strict priority order: <strong>Fall (continuous 5 s tone)</strong> overrides <strong>LiDAR obstacle (fast / medium / slow beeps at the 500 / 1000 / 1500 mm bands)</strong> which overrides the <strong>ToF drop warning (path-clear but ground gone)</strong>. Higher-priority events always preempt lower ones because a missed fall is a much worse outcome than a missed distance band.</p>
+          </div>
+        </div>
+        <div class="challenge-item">
+          <div class="challenge-icon">🔌</div>
+          <div>
+            <h4>Library-free MPU6050</h4>
+            <p>Direct <code>Wire</code> register access (<code>PWR_MGMT_1 = 0x6B</code>, <code>ACCEL_XOUT_H = 0x3B</code>) avoids dependency conflicts with Adafruit/Electronic Cats MPU libraries that clashed with the ESP32 core version.</p>
+          </div>
+        </div>
+        <div class="challenge-item">
+          <div class="challenge-icon">📡</div>
+          <div>
+            <h4>Manual TF-Luna 9-byte Frame Parser</h4>
+            <p>The <code>0x59 0x59 …</code> frame is parsed inline rather than via a vendor library, making the build portable across all ESP32 board package versions and eliminating an unreliable third-party dependency.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ SECTION 4: HARDWARE DATA FLOW ================================================================ -->
+  <section class="section" id="hw-flow">
+    <div class="sec-header">
+      <div class="sec-icon orange">🔁</div>
+      <h2 class="sec-title">4. Hardware Data Flow &amp; Firmware Flowchart</h2>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="diagram-title">ESP32 Main Loop — Simplified View</div>
+      <div class="mermaid">
+flowchart TD
+    START([Power On]) --> SETUP[Init sensors\nI2C · UART2 · LCD]
+    SETUP --> WIFI[Connect WiFi\n+ start WebSocket :81]
+    WIFI --> LOOP([Main loop\nevery 50 ms])
+
+    LOOP --> READ[Read 3 sensors\nLiDAR · ToF · IMU]
+    READ --> PKT["Build packet\ndist_fwd,dist_drop,fall_flag"]
+    PKT --> SEND[Send over Serial\n+ WebSocket broadcast]
+    SEND --> ALERT[Run alert priority\nFall → LiDAR → ToF]
+    ALERT --> LCD[Update LCD\nF: · D: · SAFE/FALL]
+    LCD --> LOOP
+
+    classDef boot fill:#fde68a,stroke:#b45309,color:#78350f,stroke-width:2px
+    classDef sensor fill:#bfdbfe,stroke:#1d4ed8,color:#1e3a8a,stroke-width:2px
+    classDef io fill:#c7d2fe,stroke:#4338ca,color:#1e1b4b,stroke-width:2px
+    classDef alert fill:#fecaca,stroke:#b91c1c,color:#7f1d1d,stroke-width:2px
+    classDef ok fill:#bbf7d0,stroke:#15803d,color:#14532d,stroke-width:2px
+
+    class START,SETUP,WIFI,LOOP boot
+    class READ sensor
+    class PKT,SEND,LCD io
+    class ALERT alert
+      </div>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="diagram-title">Alert Priority — Fall → LiDAR Obstacle → ToF Drop</div>
+      <div class="mermaid">
+flowchart TD
+    READ([Sensor tick]) --> Q1{Fall?\n|accel|² &gt; 24000}
+    Q1 -->|Yes| FALL["P1 · FALL\nBuzzer continuous — 5 s\nLCD: FALL"]:::p1
+    Q1 -->|No| Q2{LiDAR distance}
+    Q2 -->|0–500 mm| O1["P2a · Fast beeps\nCritical obstacle"]:::p2
+    Q2 -->|500–1000 mm| O2["P2b · Medium beeps\nWarning"]:::p2
+    Q2 -->|1000–1500 mm| O3["P2c · Slow beeps\nCaution"]:::p2
+    Q2 -->|&gt; 1500 mm| Q3{ToF &gt; 400 mm?\n(ground gone)}
+    Q3 -->|Yes| DROP["P3 · Drop warning\nPath clear, step ahead"]:::p3
+    Q3 -->|No| SAFE["Silent\nLCD: SAFE"]:::ok
+
+    classDef p1 fill:#fca5a5,stroke:#b91c1c,color:#7f1d1d,stroke-width:2px
+    classDef p2 fill:#fdba74,stroke:#c2410c,color:#7c2d12,stroke-width:2px
+    classDef p3 fill:#fcd34d,stroke:#b45309,color:#78350f,stroke-width:2px
+    classDef ok fill:#bbf7d0,stroke:#15803d,color:#14532d,stroke-width:2px
+      </div>
+    </div>
+
+    <p style="margin-top:18px;"><strong>How the priority works:</strong> every 50 ms the firmware first checks the IMU — a fall always wins and locks the buzzer to a continuous 5-second alarm. If there is no fall, the forward LiDAR distance picks one of three beep speeds (fast / medium / slow). Only when both checks say “all clear” does the downward ToF get a chance to flag a drop ahead. The full sensor packet is broadcast on every tick regardless of which branch wins, so the phone dashboard always sees the raw data.</p>
+    </div>
+  </section>
+
+  <!-- ================================================================ SECTION 5: SOFTWARE ================================================================ -->
+  <section class="section" id="software">
+    <div class="sec-header">
+      <div class="sec-icon purple">📱</div>
+      <h2 class="sec-title">5. Software Subsystem — Android App</h2>
+    </div>
+
+    <p>The Android app serves a dual role: it is both the <strong>gateway</strong> that listens to the cane and dispatches SMS-based emergency alerts, and the <strong>vision engine</strong> that runs YOLOv8 inference on the phone's rear camera. Splitting these two responsibilities across an Activity and a Foreground Service is a deliberate Android-architecture choice. The vision Activity is bound to the user's screen — it can be paused or backgrounded freely, and CameraX will release the camera cleanly. The SOS Service, on the other hand, must keep running with the screen off because falls do not wait for the user to unlock their phone. Both communicate with the live dashboard through <code>LocalBroadcastManager</code>, which is in-process, fast, and does not leak across app boundaries.</p>
+
+    <p>The TFLite model loader (<code>TfliteObjectDetector.kt</code>) is the most defensive piece of the codebase because it has to deal with three independent sources of variation: <em>(a)</em> models may be detection-only (84-channel output) or segmentation (116-channel output); <em>(b)</em> models may target the COCO 80-class taxonomy or our custom 8-class taxonomy; and <em>(c)</em> the device may or may not support the GPU delegate. Rather than ship four separate code paths, the loader inspects the TFLite tensor shapes at init time and branches into the correct post-processor automatically, with the GPU delegate wrapped in <code>runCatching</code> so a missing OpenGL ES 3.1 stack falls back silently to 4-thread CPU inference.</p>
+
+    <div class="card">
+      <p><strong>Package:</strong> <code>com.smartcane.gateway</code> &nbsp;|&nbsp; <strong>Min SDK:</strong> 26 (Android 8.0) &nbsp;|&nbsp; <strong>Build System:</strong> Gradle Kotlin DSL</p>
+    </div>
+
+    <h3 class="sub-title">Source File Map</h3>
+    <table>
+      <thead><tr><th>File</th><th>Responsibility</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><code>MainActivity.kt</code></td><td>Runtime permission orchestration (BLUETOOTH_*, FINE_LOCATION, SEND_SMS, CAMERA, POST_NOTIFICATIONS), service bootstrap, auto-launches vision activity</td><td><span class="badge badge-green">✓ Done</span></td></tr>
+        <tr><td><code>Android_SOS_Service.kt</code></td><td>Foreground <code>CaneSosService</code>: OkHttp WebSocket to ESP32, packet parser, FusedLocation, <code>SmsManager</code> SOS with 60 s cooldown, LocalBroadcast <code>ACTION_SENSOR_DATA</code></td><td><span class="badge badge-green">✓ Done</span></td></tr>
+        <tr><td><code>CaneVisionActivity.kt</code></td><td>CameraX preview + <code>ImageAnalysis</code> → TFLite inference → overlay + TTS (3 s per-label cooldown)</td><td><span class="badge badge-green">✓ Done</span></td></tr>
+        <tr><td><code>TfliteObjectDetector.kt</code></td><td>Loads main COCO YOLOv8 TFLite asset, auto-detects detect-vs-seg (84 vs 116 channels), NMS at IOU=0.60</td><td><span class="badge badge-green">✓ Done</span></td></tr>
+        <tr><td><code>PotholeDetector.kt</code> + <code>ElectricPoleDetector.kt</code> + <code>StairsDetector.kt</code> + <code>TreeDetector.kt</code> + <code>CarDetector.kt</code></td><td>Five specialized single-class TFLite heads; each runs in parallel with the main COCO detector. Results merged + sorted before TTS dispatch.</td><td><span class="badge badge-green">✓ Done</span></td></tr>
+        <tr><td><code>PotholeDetector.kt</code></td><td>Dedicated <code>pothole_detector_320_float16.tflite</code> head (single-class road-defect model, mAP50=0.749)</td><td><span class="badge badge-green">✓ Done</span></td></tr>
+        <tr><td><code>ElectricPoleDetector.kt</code></td><td>Dedicated electric-pole TFLite head</td><td><span class="badge badge-green">✓ Done</span></td></tr>
+        <tr><td><code>PhoneDashboardActivity.kt</code></td><td>Programmatic UI showing live ESP32 packets + vision results; fuses both LocalBroadcast feeds</td><td><span class="badge badge-green">✓ Done</span></td></tr>
+        <tr><td><code>SosContactsActivity.kt</code></td><td>Emergency contact CRUD persisted in SharedPreferences</td><td><span class="badge badge-green">✓ Done</span></td></tr>
+        <tr><td><code>NavigationActivity.kt</code></td><td>Maps/intent-based navigation hand-off</td><td><span class="badge badge-green">✓ Done</span></td></tr>
+        <tr><td><code>FallTriggerTest.kt</code></td><td>Manual fall trigger for SMS pipeline verification</td><td><span class="badge badge-green">✓ Done</span></td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub-title">Android Methodology Highlights</h3>
+    <div class="challenge-list">
+      <div class="challenge-item">
+        <div class="challenge-icon">🔀</div>
+        <div>
+          <h4>Foreground Service + LocalBroadcastManager Decoupling</h4>
+          <p><code>CaneSosService</code> handles all networking and SOS logic independently of the UI. <code>PhoneDashboardActivity</code> subscribes via <code>LocalBroadcastManager</code>, so the SOS pipeline keeps running with the screen off or activity in background.</p>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">🛡️</div>
+        <div>
+          <h4>Defensive Model Loader with Candidate List</h4>
+          <p><code>TfliteObjectDetector.loadModel()</code> iterates <code>MODEL_CANDIDATES</code>: <code>smartcane_segmentation_320_float16</code> → <code>yolov8n_seg_320_float16</code> → <code>yolov8n_320_float16</code> → …, skipping any file under 1 KB (stub placeholder). APK remains robust to missing or partial assets.</p>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">⚡</div>
+        <div>
+          <h4>GPU Delegate with CPU Fallback</h4>
+          <p>Each detector tries <code>GpuDelegate()</code> inside <code>runCatching</code> and falls back to 4 CPU threads on unsupported devices or OpenGL ES &lt; 3.1. No crash on entry-level devices.</p>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">🎙️</div>
+        <div>
+          <h4>TTS Rate-Limiting per Label</h4>
+          <p><code>ALERT_COOLDOWN_MS = 3000</code> per label prevents speech spamming when the same obstacle stays in frame. Each label has its own cooldown clock so multiple simultaneous obstacles each speak at their own 3 s cadence.</p>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">📱</div>
+        <div>
+          <h4>API-Level-Aware Permission Matrix</h4>
+          <p>Conditional <code>buildList</code> per API level in <code>MainActivity</code>: BLE runtime permissions added at API 31+, <code>POST_NOTIFICATIONS</code> added at API 33+. Avoids asking for permissions that don't exist on older devices.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="sub-title">TTS Alert Thresholds &amp; Cooldown Policy</h3>
+    <p>The single unified 8-class model was deprecated mid-project in favour of <strong>seven specialized YOLOv8n detectors running in parallel</strong>, one per hazard class. This change was driven by an empirical observation: individually fine-tuned per-class models consistently outperformed a multi-task unified head on the small, imbalanced datasets we had access to. The parallel-detector design also means a poor-performing class can be retrained or swapped without touching the others.</p>
+    <p>Voice alerts are emitted only for the <em>highest-confidence detection</em> in each frame that clears its class threshold and its per-label cooldown — this matches what is shown first on screen and prevents audio flooding when many objects are visible. Push notifications were tried in an earlier iteration and removed: in noisy walking scenarios they buried the user under banner spam without adding information beyond what TTS already conveyed.</p>
+    <table>
+      <thead><tr><th>Hazard Class</th><th>Model Asset</th><th>TTS Threshold</th><th>Cooldown</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>General objects (COCO)</td><td><code>yolov8n_320_float16</code></td><td><code>0.75</code></td><td>1.5 s/label</td><td>Default for person, furniture, animal</td></tr>
+        <tr><td>Vehicles (car, bike, bus, …)</td><td><code>yolov8n_320_float16</code> + <code>car_float16</code></td><td><code>0.75</code></td><td>1.5 s/label</td><td>Raised threshold reduces moving-object FPs</td></tr>
+        <tr><td>Pothole</td><td><code>pothole_detector_320_float16</code></td><td><code>0.60</code></td><td>1.5 s/label</td><td>mAP50 = <strong>0.749</strong> on val set</td></tr>
+        <tr><td>Electric pole</td><td><code>electric_pole_float16</code></td><td><code>0.75</code></td><td>1.5 s/label</td><td>Trained 50 epochs custom data</td></tr>
+        <tr><td>Steps / kerb</td><td><code>steps_kerb_float16</code></td><td><code>0.75</code></td><td>1.5 s/label</td><td>Drop-hazard specialist</td></tr>
+        <tr><td>Tree</td><td><code>tree_float16</code></td><td><code>0.75</code></td><td>1.5 s/label</td><td>Pavement obstacle</td></tr>
+        <tr><td>Segmentation (optional)</td><td><code>yolov8n_seg_320_float16</code></td><td>—</td><td>—</td><td>Mask overlay, no TTS path</td></tr>
+        <tr><td>Truck class</td><td>(filtered out)</td><td>—</td><td>—</td><td>Removed — too many false positives on parked vans</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:8px;font-size:0.9rem;">Bounding-box IOU threshold (NMS) was raised from 0.45 to <code>0.60</code> in <code>TfliteObjectDetector</code> so that multiple overlapping people in a frame are kept as separate detections rather than merged into one box.</p>
+  </section>
+
+  <!-- ================================================================ SECTION 6: ANDROID FLOWCHART ================================================================ -->
+  <section class="section" id="android-flow">
+    <div class="sec-header">
+      <div class="sec-icon purple">📊</div>
+      <h2 class="sec-title">6. Android App — Architecture &amp; Data Flow</h2>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="diagram-title">Android App Component Architecture</div>
+      <div class="mermaid">
+graph TB
+    subgraph PERMS["Permission Layer (MainActivity)"]
+        REQ["Runtime Permission\nRequest buildList\nAPI-level aware\nAPI31 BLE · API33 Notifications"]
+        GRANT{All Granted?}
+        REQ --> GRANT
+    end
+
+    subgraph SVC["CaneSosService (Foreground)"]
+        WC["OkHttp WebSocket\nclient to ESP32 :81"]
+        PARSE["Packet Parser\ndist_fwd,dist_drop\nfall_flag"]
+        FUSE["FusedLocation\nProvider"]
+        FALL_CHK{fall_flag == 1?}
+        COOL{60s cooldown\nelapsed?}
+        SMS_SEND["SmsManager\nSend SOS + GPS coords\nto emergency contacts"]
+        LB["LocalBroadcastManager\nACTION_SENSOR_DATA"]
+        WC --> PARSE
+        PARSE --> FALL_CHK
+        FALL_CHK -->|Yes| COOL
+        COOL -->|Yes| FUSE
+        FUSE --> SMS_SEND
+        FALL_CHK -->|No| LB
+        SMS_SEND --> LB
+    end
+
+    subgraph VIS["CaneVisionActivity"]
+        CAM2["CameraX\nPreview + ImageAnalysis\n30fps"]
+        PREP["Bitmap → \n320×320 RGB float32"]
+        INF["TfliteObjectDetector\nloadModel from MODEL_CANDIDATES\nAutodetect shape: 84 or 116 ch\nAutodetect classes: 8 or 80"]
+        NMS["NMS Post-processing\nper-class thresholds"]
+        OVL["Canvas Overlay\nBounding boxes + labels"]
+        TTS2["TextToSpeech\n1.5s cooldown · top-1\nconf ≥ 0.75 (pothole ≥ 0.60)"]
+        CAM2 --> PREP --> INF --> NMS --> OVL --> TTS2
+    end
+
+    subgraph DASH["PhoneDashboardActivity"]
+        RECV["LocalBroadcast\nReceiver"]
+        UI["Programmatic UI\nDistance bars\nFall indicator\nVision results"]
+        RECV --> UI
+    end
+
+    subgraph CONTACTS["SosContactsActivity"]
+        CRUD["Emergency Contact\nCRUD in\nSharedPreferences"]
+    end
+
+    GRANT -->|Yes| SVC
+    GRANT -->|Yes| VIS
+    LB --> RECV
+    LB --> VIS
+
+    style PERMS fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f
+    style SVC fill:#ede9fe,stroke:#7c3aed,stroke-width:3px,color:#2e1065
+    style VIS fill:#fce7f3,stroke:#be185d,stroke-width:3px,color:#831843
+    style DASH fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+    style CONTACTS fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
+      </div>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="diagram-title">TFLite Inference Pipeline — Model Detection & Fallback</div>
+      <div class="mermaid">
+flowchart TD
+    A([loadModel called]) --> B[Scan MODEL_CANDIDATES list\nsmartcane_segmentation_320_float16\nyolov8n_seg_320_float16\nyolov8n_320_float16\npothole_detector_320_float16]
+    B --> C{Asset exists &\nsize > 1KB?}
+    C -->|No - stub| B
+    C -->|Yes| D[Load TFLite FlatBuffer]
+    D --> E[Try GpuDelegate]
+    E --> F{GPU\nSupported?}
+    F -->|Yes| G[Run on GPU\n4 threads]
+    F -->|No| H[Fallback CPU\n4 threads]
+
+    G --> I[Run Inference\n320×320 float32]
+    H --> I
+
+    I --> J[Inspect output shape]
+    J --> K{channels == 116?}
+    K -->|Yes segmentation| L[Parse seg head\nmask coefficients\n32 proto masks]
+    K -->|No 84 detection| M[Parse detection head\n4 bbox + class scores]
+
+    L --> N{num_classes == 8?}
+    M --> N
+
+    N -->|Custom hazard| O[Per-hazard specialized model\nTTS threshold 0.75 default\nPothole ≥ 0.60]
+    N -->|COCO 80-class| P[Use COCO_LABELS\nDefault threshold 0.4]
+
+    O --> Q[NMS · IoU 0.45]
+    P --> Q
+
+    Q --> R[Filter by confidence]
+    R --> S[Emit DetectionResult list]
+    S --> T[Canvas overlay draw]
+    S --> U[TTS announce\nTop-1 per frame\n1.5s cooldown · conf ≥ 0.75]
+
+    classDef load fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:2px
+    classDef gpu fill:#fae8ff,stroke:#a21caf,color:#701a75,stroke-width:2px
+    classDef cpu fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px
+    classDef parse fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px
+    classDef result fill:#fecaca,stroke:#b91c1c,color:#7f1d1d,stroke-width:2px
+
+    class A,B,C,D load
+    class E,F,G gpu
+    class H,I cpu
+    class J,K,L,M,N,O,P,Q,R parse
+    class S,T,U result
+      </div>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="diagram-title">SOS Fall Detection &amp; SMS Alert Pipeline</div>
+      <div class="mermaid">
+flowchart LR
+    A[ESP32 packet received\nWebSocket frame] --> B[Parse\nfall_flag field]
+    B --> C{fall_flag == 1?}
+    C -->|No| D[Broadcast sensor data\nto PhoneDashboard]
+    C -->|Yes| E{SMS cooldown\n60s elapsed?}
+    E -->|No| F[Suppress\nDuplicate SOS]
+    E -->|Yes| G[Request last\nGPS location\nFusedLocation]
+    G --> H{Location\navailable?}
+    H -->|Yes| I[Compose SMS\nFall detected!\nLocation: lat,lng\nTimestamp]
+    H -->|No| J[Compose SMS\nFall detected!\nLocation unavailable]
+    I --> K[SmsManager.sendTextMessage\nAll emergency contacts]
+    J --> K
+    K --> L[Reset cooldown\ntimer 60s]
+    L --> D
+    F --> D
+
+    classDef ingest fill:#bfdbfe,stroke:#1d4ed8,color:#1e3a8a,stroke-width:2px
+    classDef check fill:#fef3c7,stroke:#ca8a04,color:#713f12,stroke-width:2px
+    classDef danger fill:#fecaca,stroke:#b91c1c,color:#7f1d1d,stroke-width:3px
+    classDef ok fill:#bbf7d0,stroke:#15803d,color:#14532d,stroke-width:2px
+    classDef sms fill:#c4b5fd,stroke:#7c3aed,color:#2e1065,stroke-width:2px
+
+    class A,B ingest
+    class C,E,H check
+    class G,I,J,K danger
+    class D,F,L ok
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ SECTION 7: ML PIPELINE ================================================================ -->
+  <section class="section" id="ml-pipeline">
+    <div class="sec-header">
+      <div class="sec-icon green">🤖</div>
+      <h2 class="sec-title">7. ML Model Training Pipeline</h2>
+    </div>
+
+    <p>Computer vision is the highest-leverage subsystem in the project — it is what turns a basic distance-sensing cane into something that can <em>describe</em> the world around the user. The challenge is that on a phone, every millisecond of inference latency is paid for in battery, in user response time, and in the smoothness of the audio feedback loop. The pipeline below is engineered around the constraint that <em>any frame the user is going to hear about must be inferenced inside the camera's 33 ms frame budget</em>, which is why we settled on 320×320 input resolution and float16 weights.</p>
+
+    <p>A second hard constraint is that real annotated data for visually-impaired-relevant obstacles (potholes from a pedestrian's viewpoint, kerbs at cane-tip height, e-scooters on pavements) is scarce and slow to collect. We work around this with a <strong>validate-pipeline-then-collect-data</strong> workflow: synthetic data is used to prove the entire chain — Roboflow export → YOLO training → TFLite conversion → Android assets → on-device inference — works end-to-end before a single real photograph is annotated. That way, when production data <em>does</em> arrive, deploying it is a one-command exercise rather than an integration project.</p>
+
+    <div class="card">
+      <p><strong>Strategy:</strong> <em>Validate-pipeline-then-collect-data.</em> Synthetic data (<code>generate_sample_dataset.py</code>) is used to prove that training → TFLite export → Android deployment works end-to-end before investing weeks in real annotation. Models are exported at 320×320 float16 to fit the mobile inference budget (~200–300 ms/frame) while keeping the APK under a shippable size.</p>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="diagram-title">End-to-End ML Model Development Pipeline</div>
+      <div class="mermaid">
+flowchart TD
+    A([Start: Define Obstacle Classes]) --> B[8-Class Smart Cane Taxonomy\nperson · furniture · vehicle · animal\npothole · water_puddle · slippery_floor · clear_path]
+
+    B --> C{Real labeled\ndata available?}
+    C -->|No - Bootstrap| D[generate_sample_dataset.py\nSynthetic segmentation masks\n100–500 images in minutes\nValidate pipeline works]
+    C -->|Yes - Production| E
+
+    D --> E[prepare data\nprepare_pothole_dataset.py\nprepare_unified_dataset.py\nRoboflow → YOLO format\nfix_data_yaml absolute paths]
+
+    E --> F[Dataset YAML\ntrain/val/test split\n8-class names + IDs]
+
+    F --> G{Model type?}
+
+    G -->|Detection| H[train_obstacle_models.py\nYOLOv8n detect\n--model tree / electric_pole / steps_kerb\n--epochs 50 --batch 16\nImgSz 320]
+    G -->|Segmentation| I[train_custom_segmentation.py\nYOLOv8n-seg\n--epochs 100 --batch 8\n8-class taxonomy\nImgSz 320]
+
+    H --> J[YOLO training run\nruns/detect/electric_pole\nbest.pt saved]
+    I --> K[YOLO training run\nruns/segment/smartcane_custom\nbest.pt saved]
+
+    J --> L[export_yolo_tflite.py\nbest.pt → TFLite float16\n320px → 6 MB]
+    K --> M[export_yolo_seg_tflite.py\nbest.pt → TFLite float16 seg\n320px → 6 MB]
+
+    L --> N[models/electric_pole_float16.tflite]
+    M --> O[smartcane_unified_320_float16.tflite]
+
+    N --> P[Copy to android-app/app/src/main/assets/]
+    O --> P
+
+    P --> Q[./gradlew assembleDebug]
+    Q --> R{BUILD\nSUCCESSFUL?}
+    R -->|No| S[Check asset path\nCheck model shape\nCheck label count]
+    S --> P
+    R -->|Yes| T[APK: apk_current/assets/\n4 TFLite models bundled]
+    T --> U[Deploy via ADB\nadb install app-debug.apk]
+    U --> V[adb logcat grep smartcane\nValidate inference + TTS]
+
+    classDef start fill:#fde68a,stroke:#b45309,color:#78350f,stroke-width:3px
+    classDef data fill:#bfdbfe,stroke:#1d4ed8,color:#1e3a8a,stroke-width:2px
+    classDef train fill:#fbcfe8,stroke:#be185d,color:#831843,stroke-width:2px
+    classDef export fill:#fae8ff,stroke:#a21caf,color:#701a75,stroke-width:2px
+    classDef deploy fill:#bbf7d0,stroke:#15803d,color:#14532d,stroke-width:2px
+    classDef decide fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
+
+    class A,B start
+    class D,E,F data
+    class H,I,J,K train
+    class L,M,N,O export
+    class P,Q,S,T,U,V deploy
+    class C,G,R decide
+      </div>
+    </div>
+
+    <h3 class="sub-title">Models Shipped in APK (Final Build · v1.2-ui-blue · versionCode 3)</h3>
+    <p>The shipped APK now contains <strong>seven TFLite models that run concurrently on every camera frame</strong>. One main COCO detector covers general 80-class objects; six fine-tuned specialists handle the hazards that matter most for visually-impaired navigation. Detections from all heads are merged, NMS-filtered, and surfaced to the user as a single ranked list — but each model can be independently retrained, swapped, or omitted from the assets folder without changing app code thanks to <code>runCatching</code>-guarded load/inference paths.</p>
+    <table>
+      <thead><tr><th>Asset File</th><th>Type</th><th>Classes</th><th>Size</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><code>yolov8n_320_float16.tflite</code></td><td>Detection</td><td>80 (COCO)</td><td>~6 MB</td><td>Primary general-purpose detector</td></tr>
+        <tr><td><code>yolov8n_seg_320_float16.tflite</code></td><td>Segmentation</td><td>80 (COCO)</td><td>~6.6 MB</td><td>Optional mask overlay path</td></tr>
+        <tr><td><code>pothole_detector_320_float16.tflite</code></td><td>Detection</td><td>1 (Pothole)</td><td>~6 MB</td><td>Road defect specialist · mAP50 = <strong>0.749</strong></td></tr>
+        <tr><td><code>electric_pole_float16.tflite</code></td><td>Detection</td><td>1 (Pole)</td><td>~6 MB</td><td>Vertical obstacle specialist</td></tr>
+        <tr><td><code>steps_kerb_float16.tflite</code></td><td>Detection</td><td>1 (Step/Kerb)</td><td>~6 MB</td><td>Drop-hazard visual specialist</td></tr>
+        <tr><td><code>tree_float16.tflite</code></td><td>Detection</td><td>1 (Tree)</td><td>~6 MB</td><td>Pavement-edge specialist</td></tr>
+        <tr><td><code>car_float16.tflite</code></td><td>Detection</td><td>1 (Car)</td><td>~6 MB</td><td>Vehicle specialist (supplements COCO head)</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:8px;font-size:0.9rem;color:var(--muted);">Total assets footprint: ~42 MB. Each frame is fanned out across all 7 detectors on a single background executor; combined wall-clock inference time stays under the 33 ms 30-FPS budget on Snapdragon-695-class hardware with GPU delegate enabled.</p>
+  </section>
+
+  <!-- ================================================================ SECTION 8: PYTHON DASHBOARD ================================================================ -->
+  <section class="section" id="dashboard">
+    <div class="sec-header">
+      <div class="sec-icon green">🐍</div>
+      <h2 class="sec-title">8. Python Dashboard &amp; Vision</h2>
+    </div>
+
+    <p>The Python side of the project plays two distinct roles. <strong>Project_Dashboard.py</strong> is a Streamlit application that gives the development team a live, visual view of what the cane is reporting — distance bands, fall flags, ambient-light levels — and is invaluable during demos and threshold tuning. <strong>Universal_Vision.py</strong> is a desktop YOLOv8 runner that consumes an IP-Webcam stream from any modern smartphone, letting us validate model quality on full-resolution video before committing to a TFLite conversion. Both share the same packet parser, which means a change to the wire format is a one-file edit.</p>
+
+    <p>The dashboard's three connection modes — Serial, WiFi, and Mock — exist so that <em>any</em> developer can work on the visualization layer without needing the physical cane. Mock mode in particular has been invaluable for UI work: it synthesises realistic packets including fall events and critical-distance crossings, so chart styling, alert banners, and zone-band rendering can all be exercised against deterministic data.</p>
+
+    <div class="mermaid-wrap">
+      <div class="diagram-title">Python Streamlit Dashboard Architecture</div>
+      <div class="mermaid">
+graph TB
+    subgraph DASH2["Project_Dashboard.py — Streamlit App"]
+        UI2["Sidebar\nMode selector: Serial / WiFi / Mock\nIP input / port / baud config\nStatus banner 🔌📡🎮"]
+
+        subgraph SOURCES["Pluggable Transport Layer"]
+            SRC1["SerialSource\npyserial\n115200 baud\nCOM port"]
+            SRC2["WiFiSource\nwebsocket-client\nws://ESP32_IP:81\nAuto-reconnect + caching"]
+            SRC3["MockSource\nSynthetic packets\nRandom dist + fall sim"]
+        end
+
+        PARSER["Shared Packet Parser\nParse dist_fwd,dist_drop,fall_flag\n→ Packet dataclass"]
+
+        subgraph CHARTS["Visualization Layer"]
+            Z1["Zone Band Display\nCRITICAL / WARNING / CAUTION / CLEAR\nColour-coded status bar"]
+            Z2["Trend Charts\npandas DataFrame\nrolling 100-packet window"]
+            Z3["Fall Alert Banner\nRed overlay on fall_flag=1"]
+        end
+
+        UI2 --> SOURCES
+        SRC1 --> PARSER
+        SRC2 --> PARSER
+        SRC3 --> PARSER
+        PARSER --> CHARTS
+    end
+
+    subgraph UV2["Universal_Vision.py"]
+        STREAM["IP Webcam RTSP / HTTP\nor local /dev/video0"]
+        YOLO8["YOLOv8 inference\nyolov8n ONNX or PT\n@30fps configurable"]
+        EMIT["Emit VISION|label:conf,…\nline to stdout\nDashboard can tail"]
+        STREAM --> YOLO8 --> EMIT
+    end
+
+    ESP32 -->|"USB Serial 115200"| SRC1
+    ESP32_WS -->|"WiFi WebSocket :81"| SRC2
+    EMIT --> PARSER
+      </div>
+    </div>
+
+    <h3 class="sub-title">Dashboard Connection Modes</h3>
+    <div class="card-grid">
+      <div class="card" style="border-left:4px solid #0ea5e9;margin-bottom:0;">
+        <strong>🔌 Serial Mode</strong><br/>
+        <p style="font-size:0.85rem;margin-top:8px;color:var(--muted);">Direct USB connection. <code>pyserial</code> reads from COM port at 115200. Best for benchtop testing with a physical ESP32 connected.</p>
+      </div>
+      <div class="card" style="border-left:4px solid #7c3aed;margin-bottom:0;">
+        <strong>📡 WiFi Mode</strong><br/>
+        <p style="font-size:0.85rem;margin-top:8px;color:var(--muted);"><code>websocket-client</code> connects to <code>ws://ESP32_IP:81</code>. Connection is cached across Streamlit reruns by keying on <code>(mode, ip)</code> tuple to prevent re-connect on every rerender.</p>
+      </div>
+      <div class="card" style="border-left:4px solid #f59e0b;margin-bottom:0;">
+        <strong>🎮 Mock Mode</strong><br/>
+        <p style="font-size:0.85rem;margin-top:8px;color:var(--muted);">Synthetic packet generator. Simulates realistic sensor readings including fall events and critical distance crossings — enables full dashboard testing without hardware.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ SECTION 9: DEVELOPMENT FLOW ================================================================ -->
+  <section class="section" id="development-flow">
+    <div class="sec-header">
+      <div class="sec-icon blue">🔄</div>
+      <h2 class="sec-title">9. Development Workflow &amp; Phase Progression</h2>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="diagram-title">Project Development Phases — How the Project Evolved</div>
+      <div class="mermaid">
+gitGraph
+    commit id: "Initial ESP32 firmware (Serial only)" tag: "v1.0"
+    commit id: "Basic Android app + permission scaffold"
+    commit id: "TF-Luna + VL53L0X sensor integration"
+    commit id: "MPU6050 fall detection (raw registers)"
+    commit id: "Buzzer priority logic (Fall > LiDAR > ToF)"
+    commit id: "Android CaneSosService + SMS SOS"
+    commit id: "CameraX + YOLOv8n COCO baseline TFLite"
+    commit id: "PhoneDashboard + LocalBroadcast fuse"
+    commit id: "Python Streamlit dashboard (Serial mode)"
+    branch phase-2-changes
+    commit id: "Cane_Firmware_WiFi.ino v2.1 NON-BLOCKING"
+    commit id: "WiFiSource WebSocket client in dashboard"
+    commit id: "Android OkHttp WebSocket to ESP32"
+    commit id: "3-mode dashboard (Serial/WiFi/Mock)"
+    commit id: "8-class taxonomy design"
+    commit id: "train_custom_segmentation.py + export"
+    commit id: "generate_sample_dataset.py (synthetic)"
+    commit id: "TfliteObjectDetector auto-detect shape" tag: "phase-2"
+    commit id: "Per-class confidence thresholds"
+    commit id: "PotholeDetector + ElectricPoleDetector"
+    commit id: "electric_pole 50-epoch training run"
+    commit id: "BUILD SUCCESSFUL all 4 TFLite assets" tag: "current"
+      </div>
+    </div>
+
+    <h3 class="sub-title">Phase-by-Phase Timeline</h3>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="phase">Phase 0 — Hardware Baseline</div>
+        <h4>ESP32 Sensor Cane — Serial Edition</h4>
+        <p>Integrated TF-Luna (UART2), VL53L0X (I2C), MPU6050 (raw registers), LCD, and buzzer behind a non-blocking 50 ms main loop. Resolved I2C bus contention, TF-Luna frame drops, and MPU library conflicts. Output: <code>dist_fwd,dist_drop,fall_flag</code> at 10 Hz over USB Serial and WiFi WebSocket.</p>
+      </div>
+      <div class="timeline-item">
+        <div class="phase">Phase 1 — Android Core</div>
+        <h4>CaneSosService + CameraX + COCO TFLite</h4>
+        <p>Built <code>CaneSosService</code> foreground service reading serial/WiFi packets. Added <code>SmsManager</code> SOS with GPS + 60 s cooldown. Integrated CameraX with COCO <code>yolov8n_320_float16.tflite</code> for obstacle detection and TTS callouts. Resolved permission matrix across API 26–34.</p>
+      </div>
+      <div class="timeline-item">
+        <div class="phase">Phase 1.5 — Python Dashboard</div>
+        <h4>Streamlit Serial Dashboard</h4>
+        <p>Launched <code>Project_Dashboard.py</code> with <code>SerialSource</code> and zone-band charts. Validated entire sensor-to-visualization pipeline over USB. Established shared <code>Packet</code> parser used by all three transport modes.</p>
+      </div>
+      <div class="timeline-item">
+        <div class="phase">Phase 2 — WiFi Integration</div>
+        <h4>Cane_Firmware_WiFi.ino + WiFiSource</h4>
+        <p>Extended firmware to v2.1 with non-blocking WebSocket server on :81. Added <code>WiFiSource</code> to dashboard and OkHttp WebSocket client to Android. Branched as <code>phase-2-changes</code> to avoid destabilising the working serial path. Added Mock mode for hardware-free testing.</p>
+      </div>
+      <div class="timeline-item">
+        <div class="phase">Phase 3 — Custom ML Models</div>
+        <h4>8-Class Taxonomy + Training Infrastructure</h4>
+        <p>Pivoted from the planned single unified 8-class segmentation model to a <strong>parallel-specialist architecture</strong>: separate YOLOv8n detectors for pothole, electric pole, steps/kerb, tree, and car, each fine-tuned on its own dataset and shipped as its own TFLite asset. Tuned TTS pipeline to speak only the top-confidence detection per frame at threshold 0.75 (pothole 0.60), removed all push notifications, raised NMS IOU to 0.60, rebranded app as <strong>SmartCane</strong> (teal/blue UI, versionCode 3). Pothole specialist reached mAP50=<strong>0.749</strong> on its validation set. APK auto-built via GitHub Actions on every push. <strong>BUILD SUCCESSFUL</strong>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ SECTION 10: CHALLENGES ================================================================ -->
+  <section class="section" id="challenges">
+    <div class="sec-header">
+      <div class="sec-icon red">⚡</div>
+      <h2 class="sec-title">10. Challenges Faced &amp; Resolutions</h2>
+    </div>
+
+    <h3 class="sub-title">Hardware / Firmware Challenges</h3>
+    <div class="challenge-list">
+      <div class="challenge-item">
+        <div class="challenge-icon">🔌</div>
+        <div>
+          <h4>I2C Bus Contention Between Three Devices</h4>
+          <p>VL53L0X (0x29), MPU6050 (0x68), and LCD (0x27) all share SDA/SCL on GPIO 21/22. With long wires and pull-up resistors at both device ends, the bus would occasionally lock up.</p>
+          <div class="resolution">Verified non-overlapping addresses. Added single pull-up pair at ESP32 side only. Confirmed wire lengths under 30 cm.</div>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">📡</div>
+        <div>
+          <h4>TF-Luna Intermittent Frame Drops Under Load</h4>
+          <p>When the MCU was busy with WiFi operations or I2C reads, the UART buffer would overflow and the 9-byte <code>0x59 0x59</code> frame would partially arrive, producing corrupted distances.</p>
+          <div class="resolution">Moved TF-Luna read to inline while-loop inside loop() with a 9-byte minimum guard. Increased UART2 RX buffer size. Non-blocking main loop prevents starvation.</div>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">🛠️</div>
+        <div>
+          <h4>MPU6050 Arduino Library Conflicts</h4>
+          <p>Both the Adafruit MPU6050 and Electronic Cats MPU6050 libraries conflicted with the ESP32 Arduino core version being used, causing compile errors on multiple machines.</p>
+          <div class="resolution">Replaced all library calls with direct Wire register reads: wake MPU via PWR_MGMT_1=0x00, read 6 bytes from ACCEL_XOUT_H. Eliminated the dependency entirely.</div>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">📶</div>
+        <div>
+          <h4>WiFi Connection Blocking the Sensor Loop</h4>
+          <p>The initial firmware had WiFi.begin() in a blocking while loop waiting for connection. During a WiFi outage, the sensor loop would stall for up to 10 s, causing missed buzzer beeps.</p>
+          <div class="resolution">WiFi connect attempt is time-boxed in setup() to 10 s with millis() gate. Runtime reconnects are non-blocking via lastWifiRetry flag checked each loop iteration.</div>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">📻</div>
+        <div>
+          <h4>ESP32 5 GHz Band Incompatibility</h4>
+          <p>ESP32 only supports 2.4 GHz WiFi. Several lab access points used dual-band SSIDs that would advertise both bands. Devices connecting to the 5 GHz band would never see the ESP32.</p>
+          <div class="resolution">Documented in ESP32_WIFI_CONNECTION_GUIDE.md — users must configure phone hotspot to 2.4 GHz only or select a 2.4 GHz-only SSID.</div>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">🤸</div>
+        <div>
+          <h4>False Fall Triggers from Sharp Movement</h4>
+          <p>Raising the cane quickly over a step or waving the arm produced accel magnitude spikes above 20000 that triggered false fall alerts and SMS messages.</p>
+          <div class="resolution">Threshold tuned empirically via FallTriggerTest.kt. Added fall-flag re-arm condition: flag only re-set when accel returns to baseline &lt;10000, preventing rapid re-trigger.</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="sub-title" style="margin-top:36px;">Android / Software Challenges</h3>
+    <div class="challenge-list">
+      <div class="challenge-item">
+        <div class="challenge-icon">🧩</div>
+        <div>
+          <h4>TFLite Tensor Shape Varied Between Models</h4>
+          <p>Detection output <code>[1,84,2100]</code> (4 bbox + 80 COCO classes) vs segmentation <code>[1,116,2100]</code> (4 bbox + 80 classes + 32 mask coeffs) vs custom 8-class <code>[1,12,2100]</code> — each required different post-processing.</p>
+          <div class="resolution">TfliteObjectDetector inspects output shape at init time and branches into detect/seg/custom post-processing. Single loader handles all variants transparently.</div>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">🗑️</div>
+        <div>
+          <h4>Stub .tflite Assets (29-byte Placeholders) Crashing Inference</h4>
+          <p>Early in development, placeholder empty files were committed to git for the asset paths before real models were trained. The model loader would open these files and crash on the first inference call.</p>
+          <div class="resolution">MODEL_CANDIDATES ordering + declaredLength &lt; 1024 bytes skip guard. Loader silently skips any asset under 1 KB and tries the next candidate.</div>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">💻</div>
+        <div>
+          <h4>GPU Delegate Failures on Older Android Devices</h4>
+          <p>Devices without OpenGL ES 3.1 or dedicated GPU compute units would throw on GpuDelegate() construction, crashing the vision activity entirely.</p>
+          <div class="resolution">Wrapped GpuDelegate() in runCatching with 4-thread CPU fallback. Zero crash path — worst case is slower inference.</div>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">🔊</div>
+        <div>
+          <h4>TTS Spamming the Same Label Every Frame</h4>
+          <p>At 30 fps with a person in frame, the TTS engine would queue "Person ahead" 30 times per second, causing incomprehensible audio output.</p>
+          <div class="resolution">Per-label ALERT_COOLDOWN_MS = 3000 map. Each label tracks its last-spoken timestamp independently.</div>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">📨</div>
+        <div>
+          <h4>SMS Spamming on Continuous Fall Flag</h4>
+          <p>If the user fell and the cane continued reading high accel values, the SOS SMS could be sent hundreds of times to emergency contacts.</p>
+          <div class="resolution">60 s SMS_COOLDOWN_MS rate-limit inside CaneSosService. Single atomic lastSmsSent timestamp checked before every send.</div>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">🔄</div>
+        <div>
+          <h4>Streamlit Reruns Killing WebSocket Connections</h4>
+          <p>Streamlit re-executes the entire script on every user interaction. Each rerun would create a new WebSocket connection and close the old one, causing disconnect/reconnect cycles every second.</p>
+          <div class="resolution">Connection caching keyed by (mode, ip) in Streamlit session_state. Reruns detect the existing live socket and reuse it.</div>
+        </div>
+      </div>
+      <div class="challenge-item">
+        <div class="challenge-icon">📁</div>
+        <div>
+          <h4>Roboflow data.yaml Relative Paths Breaking Training</h4>
+          <p>Roboflow exports data.yaml with ../train/images relative paths. When training from a different working directory (e.g. project root vs data/pothole/), YOLO would fail to find the images.</p>
+          <div class="resolution">fix_data_yaml() function in prepare scripts rewrites all paths to absolute and emits data_abs.yaml. Training always uses the absolute-path version.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ SECTION 11: TOOLS ================================================================ -->
+  <section class="section" id="tools">
+    <div class="sec-header">
+      <div class="sec-icon blue">🛠️</div>
+      <h2 class="sec-title">11. Tools &amp; Technologies</h2>
+    </div>
+
+    <h3 class="sub-title">Hardware / Firmware</h3>
+    <div class="tool-grid">
+      <div class="tool-item"><div class="tool-name">Arduino IDE</div><div class="tool-role">ESP32 firmware development + upload</div></div>
+      <div class="tool-item"><div class="tool-name">Espressif ESP32 Board Package</div><div class="tool-role">ESP32 core + WiFi + Wire + HardwareSerial</div></div>
+      <div class="tool-item"><div class="tool-name">Adafruit_VL53L0X</div><div class="tool-role">ToF sensor driver (I2C)</div></div>
+      <div class="tool-item"><div class="tool-name">LiquidCrystal_I2C</div><div class="tool-role">16×2 LCD via I2C bus</div></div>
+      <div class="tool-item"><div class="tool-name">WebSocketsServer (Sattler)</div><div class="tool-role">ESP32 WebSocket server :81</div></div>
+      <div class="tool-item"><div class="tool-name">Serial Monitor</div><div class="tool-role">Firmware debug + packet validation</div></div>
+    </div>
+
+    <h3 class="sub-title">Android Development</h3>
+    <div class="tool-grid">
+      <div class="tool-item"><div class="tool-name">Android Studio</div><div class="tool-role">IDE + emulator + logcat</div></div>
+      <div class="tool-item"><div class="tool-name">Gradle Kotlin DSL</div><div class="tool-role">Build system (build.gradle.kts)</div></div>
+      <div class="tool-item"><div class="tool-name">CameraX 1.3.4</div><div class="tool-role">camera-camera2 + lifecycle + view</div></div>
+      <div class="tool-item"><div class="tool-name">TensorFlow Lite 2.14</div><div class="tool-role">tflite + tflite-support 0.4.4 + tflite-gpu</div></div>
+      <div class="tool-item"><div class="tool-name">OkHttp WebSocket</div><div class="tool-role">WebSocket client to ESP32 :81</div></div>
+      <div class="tool-item"><div class="tool-name">Kotlin Coroutines</div><div class="tool-role">Async WebSocket + sensor reads</div></div>
+      <div class="tool-item"><div class="tool-name">FusedLocationProvider</div><div class="tool-role">GPS coords for SOS SMS</div></div>
+      <div class="tool-item"><div class="tool-name">SmsManager</div><div class="tool-role">Emergency SMS dispatch</div></div>
+      <div class="tool-item"><div class="tool-name">TextToSpeech</div><div class="tool-role">Audio obstacle announcements</div></div>
+      <div class="tool-item"><div class="tool-name">LocalBroadcastManager</div><div class="tool-role">Service ↔ UI decoupling</div></div>
+      <div class="tool-item"><div class="tool-name">ADB</div><div class="tool-role">APK install + logcat runtime debug</div></div>
+      <div class="tool-item"><div class="tool-name">SharedPreferences</div><div class="tool-role">Emergency contact persistence</div></div>
+    </div>
+
+    <h3 class="sub-title">Python — ML Training &amp; Dashboard</h3>
+    <div class="tool-grid">
+      <div class="tool-item"><div class="tool-name">Python 3.9–3.12</div><div class="tool-role">Runtime + .venv virtual environment</div></div>
+      <div class="tool-item"><div class="tool-name">Ultralytics YOLOv8</div><div class="tool-role">Model training, export, inference</div></div>
+      <div class="tool-item"><div class="tool-name">PyTorch</div><div class="tool-role">DL backend for YOLOv8 training</div></div>
+      <div class="tool-item"><div class="tool-name">TensorFlow</div><div class="tool-role">TFLite export + calibration</div></div>
+      <div class="tool-item"><div class="tool-name">OpenCV</div><div class="tool-role">Image pre/post-processing</div></div>
+      <div class="tool-item"><div class="tool-name">Streamlit</div><div class="tool-role">Interactive sensor dashboard UI</div></div>
+      <div class="tool-item"><div class="tool-name">pandas + numpy</div><div class="tool-role">Data manipulation + chart rolling windows</div></div>
+      <div class="tool-item"><div class="tool-name">pyserial</div><div class="tool-role">USB Serial communication to ESP32</div></div>
+      <div class="tool-item"><div class="tool-name">websocket-client</div><div class="tool-role">WiFi WebSocket to ESP32 :81</div></div>
+      <div class="tool-item"><div class="tool-name">ONNX</div><div class="tool-role">Intermediate model format for export</div></div>
+      <div class="tool-item"><div class="tool-name">Roboflow</div><div class="tool-role">Dataset annotation + YOLO export</div></div>
+      <div class="tool-item"><div class="tool-name">CVAT (Docker)</div><div class="tool-role">Professional segmentation annotation</div></div>
+      <div class="tool-item"><div class="tool-name">Label Studio</div><div class="tool-role">Alternative annotation platform</div></div>
+    </div>
+
+    <h3 class="sub-title">DevOps &amp; Process</h3>
+    <div class="tool-grid">
+      <div class="tool-item"><div class="tool-name">Git</div><div class="tool-role">Version control (main + phase-2-changes)</div></div>
+      <div class="tool-item"><div class="tool-name">GitHub</div><div class="tool-role">Remote repository + PRs</div></div>
+      <div class="tool-item"><div class="tool-name">VS Code</div><div class="tool-role">Primary development IDE</div></div>
+      <div class="tool-item"><div class="tool-name">PowerShell</div><div class="tool-role">Build scripts + ADB commands</div></div>
+    </div>
+  </section>
+
+  <!-- ================================================================ SECTION 12: STATUS ================================================================ -->
+  <section class="section" id="status">
+    <div class="sec-header">
+      <div class="sec-icon green">✅</div>
+      <h2 class="sec-title">12. Current Status &amp; Outstanding Work</h2>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="diagram-title">Component Completion Status</div>
+      <div class="mermaid">
+pie title Subsystem Completion
+    "ESP32 Firmware (Serial + WiFi)" : 95
+    "Android Core App (SOS + Vision + Dashboard)" : 90
+    "Python Dashboard (3 modes)" : 90
+    "Custom 8-class ML Model (Training infra)" : 70
+    "Production Annotation Data" : 20
+    "Field Testing / User Trials" : 10
+      </div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card" style="border-left:4px solid var(--accent3);margin-bottom:0;">
+        <strong style="color:var(--accent3);">✅ Completed</strong>
+        <ul style="margin-top:10px;padding-left:18px;font-size:0.85rem;color:var(--muted);line-height:2;">
+          <li>ESP32 firmware (serial + WiFi) compiles and streams at 10 Hz</li>
+          <li>Android app BUILD SUCCESSFUL — 4 TFLite models bundled</li>
+          <li>Python dashboard supports Serial / WiFi / Mock modes</li>
+          <li>Universal_Vision.py runs against IP Webcam streams</li>
+          <li>3 training pipelines in place (tree, electric pole, 8-class seg)</li>
+          <li>Electric pole model: 50-epoch run completed</li>
+          <li><code>models/electric_pole_float16.tflite</code> deployed to APK</li>
+          <li>Synthetic dataset generator for pipeline smoke-testing</li>
+          <li>Full documentation set across hardware + software</li>
+        </ul>
+      </div>
+      <div class="card" style="border-left:4px solid var(--warn);margin-bottom:0;">
+        <strong style="color:#92400e;">🚧 Outstanding</strong>
+        <ul style="margin-top:10px;padding-left:18px;font-size:0.85rem;color:var(--muted);line-height:2;">
+          <li>Collect &amp; annotate production data for 8-class taxonomy (300+ images per class)</li>
+          <li>Retrain individual specialist heads (pothole, pole, kerb, tree, car) at --epochs 100+ on GPU with curated real data</li>
+          <li>Field-test fall-trigger thresholds with real users / physiotherapist input</li>
+          <li>Tune LiDAR distance thresholds for indoor vs outdoor environments</li>
+          <li>Bluetooth Low Energy (BLE) transport option for closer-range cane pairing</li>
+          <li>Integration test: cane + phone + dashboard all running simultaneously</li>
+          <li>APK signing + Play Store preparation</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="alert alert-info" style="margin-top:24px;">
+      <span>ℹ️</span>
+      <div>The <strong>validate-pipeline-then-collect-data</strong> approach means every component of the system (firmware → Android → TFLite inference → TTS → SMS → dashboard) has been verified end-to-end with synthetic data. The remaining work is primarily <em>data collection and real-world calibration</em>, not architectural changes.</div>
+    </div>
+  </section>
+
+  <!-- ================================================================ APPENDIX ================================================================ -->
+  <section class="section">
+    <div class="sec-header">
+      <div class="sec-icon blue">📎</div>
+      <h2 class="sec-title">Appendix — Data Protocol Reference</h2>
+    </div>
+    <div class="card">
+      <h3 class="sub-title" style="margin-top:0;">Packet Format (Serial + WebSocket)</h3>
+      <pre><span class="cmt"># Format:  dist_fwd , dist_drop , fall_flag</span>
+<span class="cmt"># Example: "045,180,0"</span>
+
+Field        Type     Range       Description
+─────────────────────────────────────────────────────────
+dist_fwd     int      0–8000 mm   TF-Luna LiDAR forward distance
+dist_drop    int      0–1200 mm   VL53L0X downward distance
+fall_flag    bool     0 or 1      MPU6050 fall (|accel|² sum > 24000)</pre>
+
+      <h3 class="sub-title">Alert Bands</h3>
+      <table>
+        <thead><tr><th>Trigger</th><th>Condition</th><th>Buzzer</th></tr></thead>
+        <tbody>
+          <tr><td><strong>FALL</strong></td><td>|accel|² > 24000</td><td>Continuous tone for 5 s</td></tr>
+          <tr><td><strong>CRITICAL</strong></td><td>LiDAR 0–500 mm</td><td>Fast beeps</td></tr>
+          <tr><td><strong>WARNING</strong></td><td>LiDAR 500–1000 mm</td><td>Medium beeps</td></tr>
+          <tr><td><strong>CAUTION</strong></td><td>LiDAR 1000–1500 mm</td><td>Slow beeps</td></tr>
+          <tr><td><strong>DROP</strong></td><td>ToF &gt; 400 mm <em>and</em> LiDAR ≥ 1500 mm</td><td>Drop warning beeps</td></tr>
+          <tr><td><strong>CLEAR</strong></td><td>None of the above</td><td>Silent</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div><!-- /container -->
+
+<footer>
+  <p><span>Smart Cane Clip-On</span> — Full Project Report &nbsp;|&nbsp; SEM2EL &nbsp;|&nbsp; May 2026</p>
+  <p style="margin-top:6px;">ESP32 + Android (Kotlin) + Python (YOLOv8 / Streamlit) &nbsp;|&nbsp; Assistive Technology for the Visually Impaired</p>
+</footer>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#dbeafe',
+      primaryTextColor: '#0f172a',
+      primaryBorderColor: '#2563eb',
+      lineColor: '#475569',
+      secondaryColor: '#fce7f3',
+      tertiaryColor: '#dcfce7',
+      mainBkg: '#e0f2fe',
+      secondBkg: '#fef3c7',
+      tertiaryBkg: '#fae8ff',
+      clusterBkg: '#f1f5f9',
+      clusterBorder: '#94a3b8',
+      edgeLabelBackground: '#ffffff',
+      fontFamily: 'Segoe UI, system-ui, -apple-system, sans-serif',
+      fontSize: '13px',
+      nodeBorder: '#1e40af',
+      labelTextColor: '#0f172a',
+      titleColor: '#1e293b'
+    },
+    flowchart: { curve: 'basis', padding: 18, htmlLabels: true, useMaxWidth: true },
+    sequence: { actorMargin: 60, mirrorActors: false, messageAlign: 'center' },
+    gitGraph: { rotateCommitLabel: false }
+  });
+</script>
+</body>
+</html>

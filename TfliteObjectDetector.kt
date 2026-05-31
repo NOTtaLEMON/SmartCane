@@ -45,7 +45,7 @@ class TfliteObjectDetector(context: Context) : AutoCloseable {
     companion object {
         private const val MODEL_FILE     = "yolov8n_320_float16.tflite"
         private const val INPUT_SIZE     = 320
-        private const val CONF_THRESHOLD = 0.35f
+        private const val CONF_THRESHOLD = 0.20f
         private const val IOU_THRESHOLD  = 0.45f
         private const val NUM_ANCHORS    = 2100   // for 320×320 input
         private const val NUM_COORDS     = 4

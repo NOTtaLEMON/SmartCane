@@ -28,9 +28,6 @@
 package com.smartcane.gateway
 
 import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -47,9 +44,11 @@ import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.util.Log
+import android.util.Size
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.TextView
@@ -61,8 +60,6 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import java.io.ByteArrayOutputStream
@@ -75,10 +72,32 @@ class CaneVisionActivity : AppCompatActivity() {
         private const val TAG = "CaneVision"
         const val ACTION_VISION_RESULT = "com.smartcane.gateway.VISION_RESULT"
         const val EXTRA_DETECTIONS     = "detections"   // String — comma-separated labels
-        private const val NOTIF_CHANNEL_ID  = "vision_hazards"
-        private const val ALERT_COOLDOWN_MS = 3000L  // 3 s between TTS alerts per label
-        private const val NOTIF_COOLDOWN_MS = 5000L  // 5 s between push notifications per label
+        private const val ALERT_COOLDOWN_MS = 1000L  // 1.0 s between TTS alerts per label
+        private const val TTS_MIN_CONFIDENCE  = 0.60f  // default TTS threshold
+        // Per-label TTS confidence overrides
+        private val TTS_LABEL_THRESHOLDS = mapOf(
+            "pothole"    to 0.60f,
+            "car"        to 0.70f,
+            "motorcycle" to 0.70f,
+            "bus"        to 0.70f,
+            "bicycle"    to 0.70f,
+            "vehicle"    to 0.70f,
+            "van"        to 0.70f,
+            "bike"       to 0.70f,
+            "cart"       to 0.70f,
+            "cycle"      to 0.70f,
+            "e-rickshaw" to 0.70f,
+            "motorbike"  to 0.70f,
+            "rickshaw"   to 0.70f,
+            "tractor"    to 0.70f
+        )
     }
+
+    private var potholeDetector: PotholeDetector? = null
+    private var electricPoleDetector: ElectricPoleDetector? = null
+    private var stairsDetector: StairsDetector? = null
+    private var treeDetector: TreeDetector? = null
+    private var carDetector: CarDetector? = null
 
     private lateinit var previewView: PreviewView
     private lateinit var overlayView: DetectionOverlayView
@@ -86,10 +105,12 @@ class CaneVisionActivity : AppCompatActivity() {
 
     private val inferenceExecutor = Executors.newSingleThreadExecutor()
     private var detector: TfliteObjectDetector? = null
-    private var potholeDetector: PotholeDetector? = null
     private val lastAlertMs = mutableMapOf<String, Long>()
     private var tts: TextToSpeech? = null
     private var ttsReady = false
+    // Streak tracking — speak only when the same label is top-confidence 2 frames in a row
+    private var lastTopLabel: String? = null
+    private var topLabelStreak = 0
 
     // -----------------------------------------------------------------------
     //  Permission request
@@ -156,13 +177,8 @@ class CaneVisionActivity : AppCompatActivity() {
         }
         setContentView(root)
 
-        // Notification channel (API 26+)
-        val nm = getSystemService(NotificationManager::class.java)
-        if (nm.getNotificationChannel(NOTIF_CHANNEL_ID) == null) {
-            nm.createNotificationChannel(NotificationChannel(
-                NOTIF_CHANNEL_ID, "Hazard Alerts", NotificationManager.IMPORTANCE_HIGH
-            ).apply { description = "Object detected by camera" })
-        }
+        // Keep screen on — this is a cane assistant, no manual interaction needed
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // Text-to-Speech engine
         tts = TextToSpeech(this) { status ->
@@ -201,11 +217,34 @@ class CaneVisionActivity : AppCompatActivity() {
         }
         runCatching {
             potholeDetector = PotholeDetector(this)
-            Log.i(TAG, "Pothole detector loaded")
+            Log.i(TAG, "Pothole model loaded")
         }.onFailure {
-            Log.w(TAG, "Pothole detector not loaded: ${it.message}")
+            Log.e(TAG, "Pothole model load failed", it)
         }
-
+        runCatching {
+            electricPoleDetector = ElectricPoleDetector(this)
+            Log.i(TAG, "Electric pole model loaded")
+        }.onFailure {
+            Log.e(TAG, "Electric pole model load failed", it)
+        }
+        runCatching {
+            stairsDetector = StairsDetector(this)
+            Log.i(TAG, "Stairs model loaded")
+        }.onFailure {
+            Log.e(TAG, "Stairs model load failed", it)
+        }
+        runCatching {
+            treeDetector = TreeDetector(this)
+            Log.i(TAG, "Tree model loaded")
+        }.onFailure {
+            Log.e(TAG, "Tree model load failed", it)
+        }
+        runCatching {
+            carDetector = CarDetector(this)
+            Log.i(TAG, "Car model loaded")
+        }.onFailure {
+            Log.e(TAG, "Car model load failed", it)
+        }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
             startCamera()
@@ -219,6 +258,10 @@ class CaneVisionActivity : AppCompatActivity() {
         inferenceExecutor.shutdown()
         detector?.close()
         potholeDetector?.close()
+        electricPoleDetector?.close()
+        stairsDetector?.close()
+        treeDetector?.close()
+        carDetector?.close()
         tts?.stop()
         tts?.shutdown()
     }
@@ -235,6 +278,7 @@ class CaneVisionActivity : AppCompatActivity() {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
             val analysis = ImageAnalysis.Builder()
+                .setTargetResolution(Size(320, 240))   // matches model input size — no extra downscale step
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also { it.setAnalyzer(inferenceExecutor, ::analyzeFrame) }
@@ -260,38 +304,45 @@ class CaneVisionActivity : AppCompatActivity() {
     // -----------------------------------------------------------------------
     private fun analyzeFrame(imageProxy: ImageProxy) {
         val bitmap = imageProxy.toBitmap()
+        val bitmapW = bitmap.width.toFloat()
+        val bitmapH = bitmap.height.toFloat()
+        imageProxy.close()
+
+        // Pre-scale once to model input size — each detector's internal resize becomes a no-op
+        // (Bitmap.createScaledBitmap returns the same reference when dimensions already match)
+        val scaled = Bitmap.createScaledBitmap(bitmap, 320, 320, true)
+        if (scaled !== bitmap) bitmap.recycle()
 
         val det = detector
         if (det == null) {
+            scaled.recycle()
             runOnUiThread {
                 statusText.text = "Camera active — no YOLO model loaded. Place a TFLite model in assets and restart."
-                overlayView.setResults(emptyList(), bitmap.width.toFloat(), bitmap.height.toFloat())
+                overlayView.setResults(emptyList(), bitmapW, bitmapH)
             }
-            imageProxy.close()
             return
         }
 
-        val mainResults = runCatching { det.detect(bitmap) }.getOrElse {
+        val results = runCatching { det.detect(scaled) }.getOrElse {
             Log.e(TAG, "Inference failed", it); emptyList()
         }
-        val potholeResults = potholeDetector?.let {
-            runCatching { it.detect(bitmap) }.getOrElse { e ->
-                Log.e(TAG, "Pothole inference failed", e); emptyList()
-            }
-        } ?: emptyList()
-        // Merge: pothole-detector results take priority for pothole class
-        val potholeLabels = potholeResults.map { it.label }.toSet()
-        val filteredMain = mainResults.filter { it.label != "Pothole" || potholeLabels.isEmpty() }
-        val results = (filteredMain + potholeResults).sortedByDescending { it.confidence }
-        imageProxy.close()
+        val potholeResults = runCatching { potholeDetector?.detect(scaled) ?: emptyList() }.getOrElse { emptyList() }
+        val electricPoleResults = runCatching { electricPoleDetector?.detect(scaled) ?: emptyList() }.getOrElse { emptyList() }
+        val stairsResults = runCatching { stairsDetector?.detect(scaled) ?: emptyList() }.getOrElse { emptyList() }
+        val treeResults = runCatching { treeDetector?.detect(scaled) ?: emptyList() }.getOrElse { emptyList() }
+        val carResults  = runCatching { carDetector?.detect(scaled) ?: emptyList() }.getOrElse { emptyList() }
+        scaled.recycle()
+        val allResults = (results + potholeResults + electricPoleResults + stairsResults + treeResults + carResults)
+            .filter { it.label != "truck" }
+            .sortedByDescending { it.confidence }   // highest confidence first
 
         // Update overlay on main thread
         runOnUiThread {
-            overlayView.setResults(results, bitmap.width.toFloat(), bitmap.height.toFloat())
-            if (results.isEmpty()) {
+            overlayView.setResults(allResults, bitmapW, bitmapH)
+            if (allResults.isEmpty()) {
                 statusText.text = "Clear path"
             } else {
-                val top3 = results.take(3).joinToString(", ") {
+                val top3 = allResults.take(3).joinToString(", ") {
                     "${it.label} (${(it.confidence * 100).toInt()}%)"
                 }
                 statusText.text = "Detected: $top3"
@@ -299,18 +350,33 @@ class CaneVisionActivity : AppCompatActivity() {
         }
 
         // Broadcast to PhoneDashboardActivity
-        if (results.isNotEmpty()) {
-            val summary = results.take(5).joinToString(",") { it.label }
+        if (allResults.isNotEmpty()) {
+            val summary = allResults.take(5).joinToString(",") { it.label }
             LocalBroadcastManager.getInstance(this).sendBroadcast(
                 Intent(ACTION_VISION_RESULT).putExtra(EXTRA_DETECTIONS, summary)
             )
-            fireHazardAlert(results.first())
+            // Streak-gated TTS: only speak when the same top label is seen 2 frames in a row.
+            // This prevents rapid label-switching from generating noisy or missed alerts.
+            val topDet = allResults.firstOrNull { det ->
+                val minConf = TTS_LABEL_THRESHOLDS[det.label] ?: TTS_MIN_CONFIDENCE
+                det.confidence >= minConf
+            }
+            if (topDet != null) {
+                if (topDet.label == lastTopLabel) topLabelStreak++ else { lastTopLabel = topDet.label; topLabelStreak = 1 }
+                if (topLabelStreak >= 2 &&
+                    (System.currentTimeMillis() - (lastAlertMs[topDet.label] ?: 0L)) >= ALERT_COOLDOWN_MS) {
+                    fireHazardAlert(topDet)
+                }
+            } else {
+                lastTopLabel = null
+                topLabelStreak = 0
+            }
         }
     }
 
     private fun fireHazardAlert(det: DetectionResult) {
-        // Pothole voice alerts only above 60% confidence
-        if (det.label == "Pothole" && det.confidence < 0.60f) return
+        val minConf = TTS_LABEL_THRESHOLDS[det.label] ?: TTS_MIN_CONFIDENCE
+        if (det.confidence < minConf) return
         val now = System.currentTimeMillis()
         if (now - (lastAlertMs[det.label] ?: 0L) < ALERT_COOLDOWN_MS) return
         lastAlertMs[det.label] = now
@@ -338,7 +404,7 @@ class CaneVisionActivity : AppCompatActivity() {
         vuBuffer.get(nv21, ySize, vuSize)
         val yuvImage = YuvImage(nv21, ImageFormat.NV21, width, height, null)
         val out = ByteArrayOutputStream()
-        yuvImage.compressToJpeg(Rect(0, 0, width, height), 85, out)
+        yuvImage.compressToJpeg(Rect(0, 0, width, height), 45, out)
         val bytes = out.toByteArray()
         return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
     }
@@ -371,6 +437,7 @@ class DetectionOverlayView(context: android.content.Context) :
     }
 
     fun setResults(list: List<DetectionResult>, bitmapW: Float, bitmapH: Float) {
+        results.forEach { it.mask?.recycle() }
         results = list
         srcW    = bitmapW
         srcH    = bitmapH
@@ -399,8 +466,9 @@ class DetectionOverlayView(context: android.content.Context) :
             val textW = textPaint.measureText(label) + 16f
             val textH = textPaint.textSize + 12f
             val bgTop = (box.top - textH).coerceAtLeast(0f)
-            canvas.drawRect(box.left, bgTop, box.left + textW, bgTop + textH, labelBgPaint)
-            canvas.drawText(label, box.left + 8f, bgTop + textH - 8f, textPaint)
+            val textStartX = (box.left).coerceAtMost(width.toFloat() - textW)
+            canvas.drawRect(textStartX, bgTop, textStartX + textW, bgTop + textH, labelBgPaint)
+            canvas.drawText(label, textStartX + 8f, bgTop + textH - 8f, textPaint)
         }
     }
 }

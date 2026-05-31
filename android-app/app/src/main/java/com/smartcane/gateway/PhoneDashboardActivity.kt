@@ -63,7 +63,6 @@ class PhoneDashboardActivity : AppCompatActivity() {
     private lateinit var tvDistFwd:      TextView
     private lateinit var tvZone:         TextView
     private lateinit var tvDistDrop:     TextView
-    private lateinit var tvLight:        TextView
     private lateinit var tvFall:         TextView
     private lateinit var tvVision:       TextView
     private lateinit var tvLastUpdate:   TextView
@@ -203,7 +202,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
     // -----------------------------------------------------------------------
     private fun updateSensorUI(raw: String) {
         val parts = raw.split(",")
-        if (parts.size != 4) return
+        if (parts.size != 3) return
 
         // parts[0] = dist_fwd → Forward sensor
         // parts[1] = dist_drop → Drop/Step sensor
@@ -211,11 +210,9 @@ class PhoneDashboardActivity : AppCompatActivity() {
         val tofMm   = parts[1].trim().toIntOrNull() ?: 0
         val tofCm   = tofMm / 10
         val fall    = parts[2].trim().toIntOrNull() ?: 0
-        val light   = parts[3].trim().toIntOrNull() ?: 0
 
         tvDistFwd.text    = "FORWARD\n$lidarCm cm"
         tvDistDrop.text   = "DROP / STEP\n$tofCm cm"
-        tvLight.text      = "AMBIENT LIGHT:  ${luxLabel(light)}"
         tvLastUpdate.text = "Last packet: ${timeNow()}"
 
         val zone = zoneLabelCm(lidarCm)
@@ -296,13 +293,6 @@ class PhoneDashboardActivity : AppCompatActivity() {
         "WARNING"  -> Color.parseColor("#FF6D00")
         "CAUTION"  -> Color.parseColor("#FFD600")
         else       -> Color.parseColor("#00C853")
-    }
-
-    private fun luxLabel(v: Int) = when {
-        v < 200 -> "Very Dark"
-        v < 500 -> "Dim"
-        v < 800 -> "Moderate"
-        else    -> "Bright"
     }
 
     private fun timeNow() =
@@ -446,7 +436,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
         root.addView(heading("OBSTACLE ZONE", "⚠️"))
         root.addView(tvZone)
 
-        // --- Distances + light in a 2-col grid ---
+        // --- Distances in a 2-col grid ---
         root.addView(heading("SENSORS", "📡"))
         fun sensorRow(left: TextView, right: TextView) = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -464,9 +454,7 @@ class PhoneDashboardActivity : AppCompatActivity() {
         }
         tvDistFwd  = valueCard { text = "Forward\n--" }
         tvDistDrop = valueCard { text = "Drop/Step\n--" }
-        tvLight    = valueCard { text = "Light\n--" }
         root.addView(sensorRow(tvDistFwd, tvDistDrop))
-        root.addView(tvLight)
 
         // --- Vision ---
         tvVision = valueCard { text = "Vision: inactive" }

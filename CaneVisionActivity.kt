@@ -28,9 +28,6 @@
 package com.smartcane.gateway
 
 import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -60,8 +57,6 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import java.io.ByteArrayOutputStream
@@ -74,9 +69,7 @@ class CaneVisionActivity : AppCompatActivity() {
         private const val TAG = "CaneVision"
         const val ACTION_VISION_RESULT = "com.smartcane.gateway.VISION_RESULT"
         const val EXTRA_DETECTIONS     = "detections"   // String — comma-separated labels
-        private const val NOTIF_CHANNEL_ID  = "vision_hazards"
         private const val ALERT_COOLDOWN_MS = 3000L  // 3 s between TTS alerts per label
-        private const val NOTIF_COOLDOWN_MS = 5000L  // 5 s between push notifications per label
     }
 
     private lateinit var previewView: PreviewView
@@ -86,7 +79,6 @@ class CaneVisionActivity : AppCompatActivity() {
     private val inferenceExecutor = Executors.newSingleThreadExecutor()
     private var detector: TfliteObjectDetector? = null
     private val lastAlertMs = mutableMapOf<String, Long>()
-    private val lastNotifMs = mutableMapOf<String, Long>()
     private var tts: TextToSpeech? = null
     private var ttsReady = false
 
@@ -152,14 +144,6 @@ class CaneVisionActivity : AppCompatActivity() {
             addView(dashboardBtn)
         }
         setContentView(root)
-
-        // Notification channel (API 26+)
-        val nm = getSystemService(NotificationManager::class.java)
-        if (nm.getNotificationChannel(NOTIF_CHANNEL_ID) == null) {
-            nm.createNotificationChannel(NotificationChannel(
-                NOTIF_CHANNEL_ID, "Hazard Alerts", NotificationManager.IMPORTANCE_HIGH
-            ).apply { description = "Object detected by camera" })
-        }
 
         // Text-to-Speech engine
         tts = TextToSpeech(this) { status ->
@@ -278,7 +262,7 @@ class CaneVisionActivity : AppCompatActivity() {
             LocalBroadcastManager.getInstance(this).sendBroadcast(
                 Intent(ACTION_VISION_RESULT).putExtra(EXTRA_DETECTIONS, summary)
             )
-            fireHazardAlert(results.first())
+            results.forEach { fireHazardAlert(it) }
         }
     }
 
@@ -287,32 +271,6 @@ class CaneVisionActivity : AppCompatActivity() {
         if (now - (lastAlertMs[det.label] ?: 0L) < ALERT_COOLDOWN_MS) return
         lastAlertMs[det.label] = now
         if (ttsReady) tts?.speak("${det.label} detected", TextToSpeech.QUEUE_FLUSH, null, det.label)
-        sendHazardNotification(det)
-    }
-
-    private fun sendHazardNotification(det: DetectionResult) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) return
-        val now = System.currentTimeMillis()
-        if (now - (lastNotifMs[det.label] ?: 0L) < NOTIF_COOLDOWN_MS) return
-        lastNotifMs[det.label] = now
-        val tapIntent = android.app.PendingIntent.getActivity(
-            this, 0,
-            Intent(this, CaneVisionActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-            },
-            android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        val notif = androidx.core.app.NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("Hazard: ${det.label}")
-            .setContentText("${det.label.replaceFirstChar { it.uppercase() }} detected (${(det.confidence * 100).toInt()}% confidence)")
-            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(tapIntent)
-            .setAutoCancel(true)
-            .build()
-        androidx.core.app.NotificationManagerCompat.from(this).notify(det.label.hashCode(), notif)
     }
 
     // -----------------------------------------------------------------------

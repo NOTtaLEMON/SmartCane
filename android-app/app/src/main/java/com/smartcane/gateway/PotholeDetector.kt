@@ -3,9 +3,8 @@
  *  SMART CANE CLIP-ON  |  Pothole Detector (YOLOv8n TFLite)
  * ============================================================================
  *  Loads pothole_detector_320_float16.tflite — a YOLOv8n detection model
- *  trained on 3029 pothole images.  Output tensor: [1, 12, 2100]
- *  (4 box coords + 8 class scores × 2100 anchors).  Only class index 4
- *  (pothole in our Smart Cane taxonomy) is returned.
+ *  trained on pothole images, exported with nc=1 (single class).
+ *  Output tensor: [1, 5, 2100]  (4 box coords + 1 class score × 2100 anchors).
  *
  *  ASSET REQUIRED
  *  --------------
@@ -32,11 +31,14 @@ class PotholeDetector(context: Context) : AutoCloseable {
     companion object {
         private const val MODEL_FILENAME = "pothole_detector_320_float16.tflite"
         private const val INPUT_SIZE     = 320
-        private const val POTHOLE_CLASS  = 4
-        private const val CONF_THRESHOLD = 0.40f
+        private const val CONF_THRESHOLD = 0.70f
         private const val IOU_THRESHOLD  = 0.45f
         private const val NUM_COORDS     = 4
-        private const val NUM_CLASSES    = 8
+
+        private val potholeLabels = arrayOf(
+            "crack crazing", "crack longitudinal", "crack transverse",
+            "human", "pothole", "pothole", "sewer", "vehicle"
+        )
     }
 
     private val gpuDelegate = runCatching { GpuDelegate() }.getOrNull()
@@ -66,17 +68,32 @@ class PotholeDetector(context: Context) : AutoCloseable {
     fun detect(bitmap: Bitmap): List<DetectionResult> {
         val resized  = Bitmap.createScaledBitmap(bitmap, INPUT_SIZE, INPUT_SIZE, true)
         val inputBuf = bitmapToByteBuffer(resized)
+        if (resized !== bitmap) resized.recycle()
 
-        // Output: [1, 12, 2100]
-        val output = Array(1) { Array(NUM_COORDS + NUM_CLASSES) { FloatArray(2100) } }
-        interpreter.run(inputBuf, output)
+        // min/max handles both [1, 12, 2100] and transposed [1, 2100, 12]
+        val shape   = interpreter.getOutputTensor(0).shape()
+        val numCh   = minOf(shape[1], shape[2])
+        val numAnch = maxOf(shape[1], shape[2])
+        val outBuf  = Array(1) { Array(numCh) { FloatArray(numAnch) } }
+        val outputs: MutableMap<Int, Any> = hashMapOf(0 to outBuf)
+        interpreter.runForMultipleInputsOutputs(arrayOf(inputBuf), outputs)
 
-        val raw = output[0]
+        val raw = outBuf[0]
         val candidates = mutableListOf<DetectionResult>()
+        val numClasses = numCh - NUM_COORDS
 
-        for (a in 0 until 2100) {
-            val score = raw[NUM_COORDS + POTHOLE_CLASS][a]
-            if (score < CONF_THRESHOLD) continue
+        for (a in 0 until numAnch) {
+            // Find best class for this anchor (same pattern as TfliteObjectDetector)
+            var bestScore = CONF_THRESHOLD
+            var bestClass = -1
+            for (c in 0 until numClasses) {
+                val score = raw[NUM_COORDS + c][a]
+                if (score > bestScore) {
+                    bestScore = score
+                    bestClass = c
+                }
+            }
+            if (bestClass == -1) continue
 
             val cx = raw[0][a]
             val cy = raw[1][a]
@@ -90,8 +107,8 @@ class PotholeDetector(context: Context) : AutoCloseable {
 
             candidates.add(
                 DetectionResult(
-                    label       = "Pothole",
-                    confidence  = score,
+                    label       = potholeLabels.getOrElse(bestClass) { "object" },
+                    confidence  = bestScore,
                     boundingBox = RectF(x1, y1, x2, y2)
                 )
             )
