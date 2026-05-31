@@ -262,20 +262,18 @@ flowchart LR
   <div class="mermaid">
 sequenceDiagram
     participant ESP as ESP32
-    participant PKT as Packet
     participant AND as Android Service
     participant VIS as Vision Activity
     participant USR as User
     participant PY as Dashboard
-    ESP->>PKT: Publish at 10 Hz via Serial + WebSocket 81
-    PKT->>AND: Parse to Packet distFwd, distDrop, fallFlag
-    PKT->>PY: Parse to zone band + charts
-    AND->>AND: Fall flag raised?
-    AND->>USR: SMS SOS + GPS, 60 s cooldown
+    ESP->>AND: CSV packet via WebSocket at 10 Hz
+    ESP->>PY: CSV packet via Serial or WebSocket
+    AND->>AND: check fall flag
+    AND->>USR: SMS SOS plus GPS with 60 s cooldown
     AND->>VIS: LocalBroadcast sensor data
-    VIS->>VIS: Camera frame to 7x YOLOv8 TFLite inference
-    VIS->>USR: TTS top-1, 2-frame streak, 1 s cooldown, conf >= 0.60
-    PY->>USR: Zone banner + trend charts
+    VIS->>VIS: camera frame through seven TFLite models
+    VIS->>USR: TTS top-1 with 2-frame streak and 1 s cooldown
+    PY->>USR: zone banner and trend charts
   </div>
 </section>
 
