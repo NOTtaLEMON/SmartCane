@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Cane — Flowcharts, Architecture &amp; Diagrams</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --ink:#0f172a; --muted:#475569; --line:#cbd5e1;
+    --primary:#1e3a8a; --accent:#b91c1c; --bg:#f8fafc; --card:#ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--ink);
+    margin: 0; padding: 24px 16px; line-height: 1.5;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  header {
+    border-bottom: 3px solid var(--primary);
+    padding-bottom: 16px; margin-bottom: 24px;
+  }
+  header h1 {
+    margin: 0; color: var(--primary); font-size: 28px; font-weight: 700;
+  }
+  header p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+  nav {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: 14px 18px; margin-bottom: 28px;
+  }
+  nav h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+  nav ol { margin: 0; padding-left: 22px; columns: 2; column-gap: 24px; }
+  nav a { color: var(--primary); text-decoration: none; }
+  nav a:hover { text-decoration: underline; }
+
+  .figure {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin-bottom: 28px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .figure h2 {
+    margin: 0 0 4px; font-size: 20px; color: var(--primary);
+  }
+  .figure .caption {
+    color: var(--muted); font-size: 13px; margin-bottom: 16px;
+  }
+  .mermaid {
+    background: #fff;
+    text-align: center;
+    overflow-x: auto;
+    padding: 12px 0;
+  }
+  pre.algo {
+    background: #0f172a; color: #e2e8f0;
+    border-radius: 8px; padding: 16px 20px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px; line-height: 1.55;
+    overflow-x: auto;
+  }
+  pre.algo .kw { color: #93c5fd; font-weight: 600; }
+  pre.algo .cmt { color: #64748b; font-style: italic; }
+  pre.algo .lit { color: #fbbf24; }
+
+  table.circuit {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  table.circuit th, table.circuit td {
+    border: 1px solid var(--line); padding: 8px 12px; text-align: left;
+  }
+  table.circuit th {
+    background: var(--primary); color: white; font-weight: 600;
+  }
+  table.circuit tr:nth-child(even) td { background: #f1f5f9; }
+  code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 0.9em; }
+
+  @media print {
+    body { background: white; padding: 0; }
+    .figure { break-inside: avoid; box-shadow: none; border: 1px solid #ccc; }
+    nav { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Smart Cane — Diagrams &amp; Flowcharts</h1>
+  <p>One-page reference of all system, hardware, software and ML diagrams. Each figure is in its own card — right-click → screenshot for slides / report.</p>
+</header>
+
+<nav>
+  <h3>Index</h3>
+  <ol>
+    <li><a href="#fig1">High-Level System Overview</a></li>
+    <li><a href="#fig2">Detailed System Architecture</a></li>
+    <li><a href="#fig3">Hardware Wiring / Circuit Diagram</a></li>
+    <li><a href="#fig4">Power Flow</a></li>
+    <li><a href="#fig5">Data Protocol — Sequence Diagram</a></li>
+    <li><a href="#fig6">ESP32 Firmware Main Loop</a></li>
+    <li><a href="#fig7">Alert Priority Decision Tree</a></li>
+    <li><a href="#fig8">Android App Component Architecture</a></li>
+    <li><a href="#fig9">TFLite Inference Pipeline</a></li>
+    <li><a href="#fig10">SOS Fall → SMS Pipeline</a></li>
+    <li><a href="#fig11">ML Model Training Pipeline</a></li>
+    <li><a href="#fig12">Python Dashboard Architecture</a></li>
+    <li><a href="#fig13">Firmware Algorithm (Pseudocode)</a></li>
+    <li><a href="#fig14">TTS Dispatch Algorithm (Pseudocode)</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================== -->
+<section class="figure" id="fig1">
+  <h2>Figure 1 — High-Level System Overview</h2>
+  <p class="caption">Three loosely-coupled modules talking over CSV packets and WebSocket frames.</p>
+  <div class="mermaid">
+graph LR
+    A([ESP32<br/>Sensor Cane]):::esp -->|CSV packet 10 Hz| B([Android<br/>Gateway App]):::and
+    A -->|CSV via WebSocket| C([Python<br/>Dashboard]):::py
+    C -.->|TFLite model<br/>copy to assets| B
+    B -->|TTS · SMS SOS · Haptics| U([User &amp;<br/>Caregivers]):::user
+    classDef esp fill:#fde68a,stroke:#d97706,stroke-width:3px,color:#78350f
+    classDef and fill:#c4b5fd,stroke:#7c3aed,stroke-width:3px,color:#2e1065
+    classDef py  fill:#86efac,stroke:#059669,stroke-width:3px,color:#064e3b
+    classDef user fill:#fca5a5,stroke:#dc2626,stroke-width:3px,color:#7f1d1d
+  </div>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig2">
+  <h2>Figure 2 — Detailed System Architecture</h2>
+  <p class="caption">All subsystems and inter-module interfaces.</p>
+  <div class="mermaid">
+graph TB
+    subgraph HW["Module A · ESP32 Sensor Cane"]
+        direction TB
+        LUNA["TF-Luna LiDAR<br/>Forward range · UART2"]
+        TOF["VL53L0X ToF<br/>Drop detection · I2C 0x29"]
+        IMU["MPU6050 IMU<br/>Fall detection · I2C 0x68"]
+        FW["ESP32 Firmware<br/>Non-blocking 50 ms loop"]
+        LCD["16×2 LCD · I2C 0x27"]
+        BUZ["Buzzer · GPIO4"]
+        WS["WebSocket :81"]
+        SER["USB Serial 115200"]
+        LUNA --> FW
+        TOF --> FW
+        IMU --> FW
+        FW --> LCD
+        FW --> BUZ
+        FW --> WS
+        FW --> SER
+    end
+    subgraph AND["Module B · Android SmartCane App"]
+        direction TB
+        SVC["CaneSosService<br/>Foreground service"]
+        CAM["CameraX · 30 fps"]
+        DET["7× TFLite detectors<br/>in parallel"]
+        TTS["TextToSpeech<br/>top-1 · 2-frame gate"]
+        SMS["SmsManager SOS<br/>60 s cooldown"]
+        DASH["PhoneDashboard"]
+        SVC -->|LocalBroadcast| DASH
+        CAM --> DET --> TTS
+        SVC -->|fall flag| SMS
+    end
+    subgraph PY["Module C · Python Tools"]
+        direction TB
+        STRL["Streamlit Dashboard<br/>Serial · WiFi · Mock"]
+        UV["Universal_Vision.py<br/>IP-Webcam runner"]
+        TRAIN["YOLOv8 training<br/>+ TFLite export"]
+        TRAIN -->|.tflite assets| AND
+    end
+    WS -->|WebSocket| SVC
+    WS -->|WebSocket| STRL
+    SER -->|Serial| STRL
+    style HW  fill:#fef3c7,stroke:#d97706,stroke-width:3px,color:#78350f
+    style AND fill:#ede9fe,stroke:#7c3aed,stroke-width:3px,color:#2e1065
+    style PY  fill:#d1fae5,stroke:#059669,stroke-width:3px,color:#064e3b
+  </div>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig3">
+  <h2>Figure 3 — Hardware Wiring / Circuit Diagram</h2>
+  <p class="caption">ESP32 pin map and bus assignments. Shared I2C bus on SDA21 / SCL22.</p>
+  <div class="mermaid">
+graph LR
+    subgraph PWR["Power Rail"]
+        BAT["3.7 V Li-ion"]
+        SW["KD Slide Switch"]
+        MT["MT3608 Boost<br/>3.7→5 V"]
+        BAT --> SW --> MT
+    end
+    subgraph ESP32["ESP32 DevKit"]
+        V5["VIN/5V"]
+        GND["GND"]
+        P16["GPIO16 RX2"]
+        P17["GPIO17 TX2"]
+        P21["GPIO21 SDA"]
+        P22["GPIO22 SCL"]
+        P4["GPIO4"]
+    end
+    subgraph SENSORS["Sensors / Peripherals"]
+        TFL["TF-Luna LiDAR<br/>UART · 115200"]
+        VL["VL53L0X ToF<br/>I2C 0x29"]
+        MPU["MPU6050 IMU<br/>I2C 0x68"]
+        LCD["16×2 LCD I2C<br/>0x27"]
+        BUZ["Active Buzzer"]
+    end
+    MT -->|5V| V5
+    MT -->|GND| GND
+    P16 --- TFL
+    P17 --- TFL
+    P21 --- VL
+    P22 --- VL
+    P21 --- MPU
+    P22 --- MPU
+    P21 --- LCD
+    P22 --- LCD
+    P4  --- BUZ
+    style PWR fill:#fef3c7,stroke:#d97706,color:#78350f
+    style ESP32 fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
+    style SENSORS fill:#dcfce7,stroke:#15803d,color:#14532d
+  </div>
+  <table class="circuit" style="margin-top:14px;">
+    <thead>
+      <tr><th>Component</th><th>Bus / Pin</th><th>Address / Baud</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>TF-Luna LiDAR</td><td>UART2 RX=GPIO16, TX=GPIO17</td><td>115200</td><td>Forward distance, 9-byte frame</td></tr>
+      <tr><td>VL53L0X ToF</td><td>I2C SDA=21, SCL=22</td><td>0x29</td><td>Downward, Adafruit lib</td></tr>
+      <tr><td>MPU6050 IMU</td><td>I2C SDA=21, SCL=22</td><td>0x68</td><td>Raw register reads (no lib)</td></tr>
+      <tr><td>16×2 LCD</td><td>I2C SDA=21, SCL=22</td><td>0x27</td><td>Status: F / D / SAFE / FALL</td></tr>
+      <tr><td>Active Buzzer</td><td>GPIO4 → +, GND → −</td><td>—</td><td>Priority-arbitrated</td></tr>
+      <tr><td>Power</td><td>VIN ← MT3608 5 V out</td><td>—</td><td>From 3.7 V Li-ion via KD switch</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig4">
+  <h2>Figure 4 — Power Flow</h2>
+  <p class="caption">Battery → switch → boost → load.</p>
+  <div class="mermaid">
+flowchart LR
+    BAT(["3.7 V Li-ion<br/>battery"]):::bat --> SW{{"KD Slide Switch<br/>ON / OFF"}}:::sw
+    SW --> MT["MT3608 Boost<br/>3.7 V → 5 V"]:::boost
+    MT --> ESP(["ESP32 + sensors<br/>+ LCD + buzzer"]):::load
+    classDef bat   fill:#fde68a,stroke:#b45309,stroke-width:2px,color:#78350f
+    classDef sw    fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
+    classDef boost fill:#bfdbfe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
+    classDef load  fill:#bbf7d0,stroke:#15803d,stroke-width:2px,color:#14532d
+  </div>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig5">
+  <h2>Figure 5 — Data Protocol Sequence</h2>
+  <p class="caption">End-to-end packet flow from ESP32 to user audio + SMS.</p>
+  <div class="mermaid">
+sequenceDiagram
+    participant ESP as ESP32 Firmware
+    participant PKT as Packet "fwd,drop,fall"
+    participant AND as Android CaneSosService
+    participant VIS as CaneVisionActivity (TFLite)
+    participant USR as User (Audio / SMS)
+    participant PY as Python Dashboard
+    ESP->>PKT: Publish @ 10 Hz (Serial + WebSocket :81)
+    PKT->>AND: Parse → Packet(distFwd, distDrop, fallFlag)
+    PKT->>PY:  Parse → zone band + charts
+    AND->>AND: Fall flag raised?
+    AND->>USR: SMS SOS + GPS (60 s cooldown)
+    AND->>VIS: LocalBroadcast sensor data
+    VIS->>VIS: CameraX frame → 7× YOLOv8 TFLite inference
+    VIS->>USR: TTS top-1 (2-frame streak · 1 s cooldown · conf ≥ 0.60)
+    PY->>USR:  Zone banner + trend charts
+  </div>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig6">
+  <h2>Figure 6 — ESP32 Firmware Main Loop</h2>
+  <p class="caption">Single non-blocking loop, all sensors polled every 80 ms.</p>
+  <div class="mermaid">
+flowchart TD
+    START([Power On]) --> SETUP[Init sensors<br/>I2C · UART2 · LCD]
+    SETUP --> WIFI[Connect WiFi<br/>+ start WebSocket :81]
+    WIFI --> LOOP([Main loop<br/>every 80 ms])
+    LOOP --> READ[Read 3 sensors<br/>LiDAR · ToF · IMU]
+    READ --> PKT["Build packet<br/>fwd,drop,fall"]
+    PKT --> SEND[Send Serial<br/>+ WebSocket broadcast]
+    SEND --> ALERT[Run alert priority<br/>Fall → LiDAR → ToF]
+    ALERT --> LCD[Update LCD<br/>F: · D: · SAFE/FALL]
+    LCD --> LOOP
+    classDef boot   fill:#fde68a,stroke:#b45309,color:#78350f,stroke-width:2px
+    classDef sensor fill:#bfdbfe,stroke:#1d4ed8,color:#1e3a8a,stroke-width:2px
+    classDef io     fill:#c7d2fe,stroke:#4338ca,color:#1e1b4b,stroke-width:2px
+    classDef alert  fill:#fecaca,stroke:#b91c1c,color:#7f1d1d,stroke-width:2px
+    class START,SETUP,WIFI,LOOP boot
+    class READ sensor
+    class PKT,SEND,LCD io
+    class ALERT alert
+  </div>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig7">
+  <h2>Figure 7 — Alert Priority Decision Tree</h2>
+  <p class="caption">Fall always wins; LiDAR distance bands next; ToF drop last.</p>
+  <div class="mermaid">
+flowchart TD
+    READ([Sensor tick]) --> Q1{Fall?<br/>|accel| &gt; 26000}
+    Q1 -->|Yes| FALL["P1 · FALL<br/>Buzzer continuous 5 s<br/>LCD: FALL · LED ON"]:::p1
+    Q1 -->|No| Q2{LiDAR distance}
+    Q2 -->|0–50 cm|   O1["P2a · Fast beeps<br/>Critical"]:::p2
+    Q2 -->|51–100 cm| O2["P2b · Medium beeps<br/>Warning"]:::p2
+    Q2 -->|101–150 cm|O3["P2c · Slow beeps<br/>Caution"]:::p2
+    Q2 -->|&gt; 150 cm| Q3{ToF &gt; 400 mm?<br/>(ground gone)}
+    Q3 -->|Yes| DROP["P3 · Drop warning<br/>Path clear, step ahead"]:::p3
+    Q3 -->|No|  SAFE["Silent<br/>LCD: SAFE"]:::ok
+    classDef p1 fill:#fca5a5,stroke:#b91c1c,color:#7f1d1d,stroke-width:2px
+    classDef p2 fill:#fdba74,stroke:#c2410c,color:#7c2d12,stroke-width:2px
+    classDef p3 fill:#fcd34d,stroke:#b45309,color:#78350f,stroke-width:2px
+    classDef ok fill:#bbf7d0,stroke:#15803d,color:#14532d,stroke-width:2px
+  </div>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig8">
+  <h2>Figure 8 — Android App Component Architecture</h2>
+  <p class="caption">Permissions → Service → Vision Activity → Dashboard.</p>
+  <div class="mermaid">
+graph TB
+    subgraph PERMS["Permission Layer (MainActivity)"]
+        REQ["Runtime Permission Request<br/>API-aware: BLE · Notifications · SMS · Camera"]
+        GRANT{All Granted?}
+        REQ --> GRANT
+    end
+    subgraph SVC["CaneSosService (Foreground)"]
+        WC["OkHttp WebSocket<br/>client to ESP32 :81"]
+        PARSE["Packet Parser<br/>fwd,drop,fall"]
+        FUSE["FusedLocation"]
+        FALL_CHK{fall == 1?}
+        COOL{60 s cooldown?}
+        SMS_SEND["SmsManager<br/>SOS + GPS"]
+        LB["LocalBroadcast<br/>ACTION_SENSOR_DATA"]
+        WC --> PARSE --> FALL_CHK
+        FALL_CHK -->|Yes| COOL -->|Yes| FUSE --> SMS_SEND
+        FALL_CHK -->|No| LB
+        SMS_SEND --> LB
+    end
+    subgraph VIS["CaneVisionActivity"]
+        CAM2["CameraX 30 fps<br/>320×240 capture"]
+        PREP["Bitmap → 320×320 float32"]
+        INF["7× TFLite detectors<br/>(COCO + 6 specialists)"]
+        NMS["NMS · per-class thresholds"]
+        OVL["Canvas overlay"]
+        TTS2["TTS<br/>top-1 · 2-frame streak<br/>1 s cooldown · ≥ 0.60"]
+        CAM2 --> PREP --> INF --> NMS --> OVL --> TTS2
+    end
+    subgraph DASH["PhoneDashboardActivity"]
+        RECV["LocalBroadcast Receiver"]
+        UI["Distance bars<br/>Fall indicator<br/>Vision results"]
+        RECV --> UI
+    end
+    GRANT -->|Yes| SVC
+    GRANT -->|Yes| VIS
+    LB --> RECV
+    LB --> VIS
+    style PERMS fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f
+    style SVC   fill:#ede9fe,stroke:#7c3aed,stroke-width:3px,color:#2e1065
+    style VIS   fill:#fce7f3,stroke:#be185d,stroke-width:3px,color:#831843
+    style DASH  fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+  </div>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig9">
+  <h2>Figure 9 — TFLite Inference Pipeline</h2>
+  <p class="caption">Model auto-detection + GPU/CPU fallback path.</p>
+  <div class="mermaid">
+flowchart TD
+    A([loadModel called]) --> B[Scan MODEL_CANDIDATES<br/>smartcane_seg · yolov8n_seg<br/>yolov8n · pothole_detector …]
+    B --> C{Asset exists<br/>&amp; size &gt; 1 KB?}
+    C -->|No| B
+    C -->|Yes| D[Load TFLite FlatBuffer]
+    D --> E[Try GpuDelegate]
+    E --> F{GPU OK?}
+    F -->|Yes| G[GPU · 4 threads]
+    F -->|No|  H[CPU fallback · 4 threads]
+    G --> I[Run inference 320×320 float32]
+    H --> I
+    I --> J[Inspect output shape]
+    J --> K{channels == 116?}
+    K -->|Yes| L[Seg head<br/>32 proto masks]
+    K -->|No 84| M[Detection head<br/>4 bbox + class scores]
+    L --> N{8 or 80 classes?}
+    M --> N
+    N -->|Custom 8| O[Per-hazard model<br/>thresh ≥ 0.60]
+    N -->|COCO 80| P[COCO_LABELS<br/>default 0.40]
+    O --> Q[NMS · IoU 0.45]
+    P --> Q
+    Q --> R[Filter by confidence]
+    R --> S[Emit DetectionResult list]
+    S --> T[Canvas overlay]
+    S --> U[TTS top-1<br/>2-frame streak<br/>1 s cooldown]
+    classDef load   fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:2px
+    classDef gpu    fill:#fae8ff,stroke:#a21caf,color:#701a75,stroke-width:2px
+    classDef cpu    fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px
+    classDef parse  fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px
+    classDef result fill:#fecaca,stroke:#b91c1c,color:#7f1d1d,stroke-width:2px
+    class A,B,C,D load
+    class E,F,G gpu
+    class H,I cpu
+    class J,K,L,M,N,O,P,Q,R parse
+    class S,T,U result
+  </div>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig10">
+  <h2>Figure 10 — SOS Fall → SMS Pipeline</h2>
+  <p class="caption">From `fall_flag=1` to outgoing SMS in under a second.</p>
+  <div class="mermaid">
+flowchart LR
+    A[ESP32 packet<br/>WebSocket frame] --> B[Parse fall_flag]
+    B --> C{fall == 1?}
+    C -->|No| D[Broadcast sensor<br/>to dashboard]
+    C -->|Yes| E{Cooldown<br/>60 s elapsed?}
+    E -->|No| F[Suppress<br/>duplicate]
+    E -->|Yes| G[Request GPS<br/>FusedLocation]
+    G --> H{Location ok?}
+    H -->|Yes| I[Compose SMS<br/>Fall detected!<br/>lat,lng + time]
+    H -->|No|  J[Compose SMS<br/>Fall detected!<br/>(no location)]
+    I --> K[SmsManager send<br/>to all contacts]
+    J --> K
+    K --> L[Reset cooldown<br/>timer 60 s] --> D
+    F --> D
+    classDef ingest fill:#bfdbfe,stroke:#1d4ed8,color:#1e3a8a,stroke-width:2px
+    classDef check  fill:#fef3c7,stroke:#ca8a04,color:#713f12,stroke-width:2px
+    classDef danger fill:#fecaca,stroke:#b91c1c,color:#7f1d1d,stroke-width:3px
+    classDef ok     fill:#bbf7d0,stroke:#15803d,color:#14532d,stroke-width:2px
+    class A,B ingest
+    class C,E,H check
+    class G,I,J,K danger
+    class D,F,L ok
+  </div>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig11">
+  <h2>Figure 11 — ML Model Training Pipeline</h2>
+  <p class="caption">Validate-pipeline-then-collect-data workflow.</p>
+  <div class="mermaid">
+flowchart TD
+    A([Define obstacle classes]) --> B[8-class taxonomy<br/>person · vehicle · pothole<br/>tree · pole · steps · car · clear]
+    B --> C{Real labelled<br/>data?}
+    C -->|No| D[generate_sample_dataset.py<br/>Synthetic masks<br/>(validate pipeline)]
+    C -->|Yes| E
+    D --> E[prepare_*_dataset.py<br/>Roboflow → YOLO format]
+    E --> F[Dataset YAML<br/>train/val/test split]
+    F --> G{Model type?}
+    G -->|Detection| H[train_obstacle_models.py<br/>YOLOv8n · 50 ep · imgsz 320]
+    G -->|Segmentation| I[train_custom_segmentation.py<br/>YOLOv8n-seg · 100 ep]
+    H --> J[runs/detect/<br/>best.pt]
+    I --> K[runs/segment/<br/>best.pt]
+    J --> L[export_yolo_tflite.py<br/>→ float16 320 ~6 MB]
+    K --> M[export_yolo_seg_tflite.py<br/>→ float16 seg ~6.6 MB]
+    L --> P[Copy → android-app/<br/>app/src/main/assets/]
+    M --> P
+    P --> Q[gradlew assembleDebug]
+    Q --> R{BUILD OK?}
+    R -->|No| S[Check shape<br/>+ label count] --> P
+    R -->|Yes| T[APK · 7 models bundled]
+    T --> U[adb install + logcat]
+    classDef data   fill:#bfdbfe,stroke:#1d4ed8,color:#1e3a8a,stroke-width:2px
+    classDef train  fill:#fbcfe8,stroke:#be185d,color:#831843,stroke-width:2px
+    classDef export fill:#fae8ff,stroke:#a21caf,color:#701a75,stroke-width:2px
+    classDef deploy fill:#bbf7d0,stroke:#15803d,color:#14532d,stroke-width:2px
+    classDef decide fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
+    class A,B,D,E,F data
+    class H,I,J,K train
+    class L,M export
+    class P,Q,S,T,U deploy
+    class C,G,R decide
+  </div>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig12">
+  <h2>Figure 12 — Python Dashboard Architecture</h2>
+  <p class="caption">Pluggable transport (Serial / WiFi / Mock) + shared parser + visualisation layer.</p>
+  <div class="mermaid">
+graph TB
+    subgraph DASH2["Project_Dashboard.py — Streamlit"]
+        UI2["Sidebar<br/>Mode: Serial / WiFi / Mock<br/>IP · port · baud"]
+        subgraph SOURCES["Transport Layer"]
+            SRC1["SerialSource<br/>pyserial 115200"]
+            SRC2["WiFiSource<br/>websocket-client<br/>ws://ESP32_IP:81"]
+            SRC3["MockSource<br/>Synthetic packets"]
+        end
+        PARSER["Shared Packet Parser<br/>→ Packet dataclass"]
+        subgraph CHARTS["Visualisation"]
+            Z1["Zone band<br/>CRITICAL / WARN / CAUTION / CLEAR"]
+            Z2["Trend charts<br/>100-packet rolling window"]
+            Z3["Fall alert banner"]
+        end
+        UI2 --> SOURCES
+        SRC1 --> PARSER
+        SRC2 --> PARSER
+        SRC3 --> PARSER
+        PARSER --> CHARTS
+    end
+    subgraph UV2["Universal_Vision.py"]
+        STREAM["IP-Webcam HTTP / local cam"]
+        YOLO8["YOLOv8 inference<br/>ONNX or PT @30 fps"]
+        EMIT["Emit VISION|label:conf …<br/>to stdout"]
+        STREAM --> YOLO8 --> EMIT
+    end
+    ESP32 -->|USB Serial| SRC1
+    ESP32_WS -->|WebSocket :81| SRC2
+    EMIT --> PARSER
+    style DASH2 fill:#d1fae5,stroke:#059669,stroke-width:3px,color:#064e3b
+    style UV2   fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f
+  </div>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig13">
+  <h2>Figure 13 — Firmware Algorithm (Pseudocode)</h2>
+  <p class="caption">Single-loop, non-blocking control flow.</p>
+<pre class="algo">
+<span class="kw">init</span>():
+    Serial.begin(<span class="lit">115200</span>)
+    Wire.begin(SDA=<span class="lit">21</span>, SCL=<span class="lit">22</span>, clk=<span class="lit">100 kHz</span>)
+    Serial2.begin(<span class="lit">115200</span>, RX=<span class="lit">16</span>, TX=<span class="lit">17</span>)        <span class="cmt"># TF-Luna</span>
+    vl53.init() · mpu.wake() · lcd.init()
+    wifi.connect(SSID, PSK)
+    ws.begin(port=<span class="lit">81</span>)
+
+<span class="kw">loop</span>():                                          <span class="cmt"># every LOOP_MS = 80 ms</span>
+    fwd  = readLidarCm()                          <span class="cmt"># 0–800 cm</span>
+    drop = readTofMm()                            <span class="cmt"># 0–2000 mm</span>
+    aMag = sqrt(ax² + ay² + az²)                  <span class="cmt"># raw IMU</span>
+
+    <span class="kw">if</span> aMag &gt; FALL_THRESHOLD (<span class="lit">26000</span>):
+        fallAlertActive = <span class="kw">true</span>
+        fallStartTime   = now()
+    <span class="kw">if</span> fallAlertActive <span class="kw">and</span> now() − fallStartTime &gt; <span class="lit">5000 ms</span>:
+        fallAlertActive = <span class="kw">false</span>
+
+    fallFlag = fallAlertActive ? <span class="lit">1</span> : <span class="lit">0</span>
+
+    pkt = sprintf(<span class="lit">"%03d,%03d,%d"</span>, fwd, drop, fallFlag)
+    Serial.println(pkt)
+    ws.broadcastTXT(pkt)
+
+    <span class="kw">if</span>  fallFlag:                buzzer(CONTINUOUS) · led(ON)
+    <span class="kw">elif</span> fwd ≤ <span class="lit">50</span>:                buzzer(BEEP_FAST)
+    <span class="kw">elif</span> fwd ≤ <span class="lit">100</span>:               buzzer(BEEP_MEDIUM)
+    <span class="kw">elif</span> fwd ≤ <span class="lit">150</span>:               buzzer(BEEP_SLOW)
+    <span class="kw">elif</span> drop &gt; <span class="lit">400</span> mm:           buzzer(DROP_WARN)
+    <span class="kw">else</span>:                          buzzer(OFF) · led(OFF)
+
+    lcd.update(fwd, drop, fallFlag)
+</pre>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig14">
+  <h2>Figure 14 — TTS Dispatch Algorithm (Pseudocode)</h2>
+  <p class="caption">Two-frame streak gate prevents flicker between labels.</p>
+<pre class="algo">
+<span class="kw">state</span>:
+    lastTopLabel  : String? = null
+    topLabelStreak: Int     = 0
+    lastSpokenAt  : Map[label → millis] = {}
+
+<span class="kw">on_frame</span>(detections):
+    merged = mainCocoDets + potholeDets + poleDets + treeDets + carDets + stepsDets
+    merged = nms(merged, IoU=<span class="lit">0.45</span>)
+    merged = filter(d → d.conf ≥ thresholdFor(d.label))   <span class="cmt"># per-class</span>
+
+    drawOverlay(merged)
+
+    <span class="kw">if</span> merged.isEmpty():
+        lastTopLabel   = null
+        topLabelStreak = <span class="lit">0</span>
+        <span class="kw">return</span>
+
+    top = merged.maxBy(d → d.conf)
+
+    <span class="kw">if</span> top.label == lastTopLabel:
+        topLabelStreak += <span class="lit">1</span>
+    <span class="kw">else</span>:
+        lastTopLabel   = top.label
+        topLabelStreak = <span class="lit">1</span>
+
+    <span class="kw">if</span> topLabelStreak ≥ <span class="lit">2</span>
+       <span class="kw">and</span> top.conf ≥ TTS_MIN_CONFIDENCE (<span class="lit">0.60</span>)
+       <span class="kw">and</span> now() − lastSpokenAt[top.label] &gt; ALERT_COOLDOWN_MS (<span class="lit">1000</span>):
+        tts.speak(friendlyLabel(top.label))
+        lastSpokenAt[top.label] = now()
+</pre>
+</section>
+
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    securityLevel: 'loose',
+    flowchart: { htmlLabels: true, useMaxWidth: true, curve: 'basis' },
+    sequence:  { useMaxWidth: true }
+  });
+</script>
+</body>
+</html>
