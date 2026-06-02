@@ -1,4 +1,4 @@
-// === VERSION: v3.0 - BEST FINAL BUZZER LOGIC ===
+// === VERSION: v3.4 - STABILIZED LIVE PRODUCTION BUILD ===
 // === If you see this, you have the latest firmware ===
 /*
  * ============================================================================
@@ -17,7 +17,7 @@
  *  BUZZER PRIORITY:
  *    1. Fall alert  (MPU6050) — 5 s continuous
  *    2. LiDAR zones (0-50 cm fast / 51-100 cm medium / 101-150 cm slow)
- *    3. ToF drop    (> 400 mm when path is clear)
+ *    3. ToF drop    (> 250 mm when path is clear)
  *
  *  DATA PROTOCOL:
  *    "dist_fwd,dist_drop,fall_flag"   e.g. "045,180,0"
@@ -46,7 +46,10 @@
 #define MPU6050_ADDR         0x68
 #define MPU6050_PWR_MGMT_1   0x6B
 #define MPU6050_ACCEL_XOUT_H 0x3B
-#define FALL_THRESHOLD       26000
+#define FALL_THRESHOLD       49512   // Filters heavy sidewalk taps entirely
+
+// ================= TOF THRESHOLD ===========
+#define TOF_DROP_THRESHOLD   250     // 25 cm (250 mm) for deep drop warning zones
 
 // ================= WIFI ====================
 #define WIFI_SSID      "ARAVIND"     // *** replace with actual SSID ***
@@ -161,7 +164,7 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   Serial.println("\n\n=== SMART CANE FIRMWARE (WiFi) ===");
-  Serial.println("=== VERSION: v3.0 - BEST FINAL BUZZER LOGIC ===\n");
+  Serial.println("=== VERSION: v3.4 - STABILIZED LIVE PRODUCTION BUILD ===\n");
 
   // I2C
   Wire.begin(21, 22);
@@ -324,8 +327,8 @@ void loop() {
       digitalWrite(BUZZER_PIN, HIGH); delay(150);
       digitalWrite(BUZZER_PIN, LOW);  delay(400);
 
-    } else if ((distForward == 0 || distForward > 150) && distDrop > 400) {
-      // ---- PRIORITY 3: Drop detected (path clear) ----
+    } else if ((distForward == 0 || distForward > 150) && distDrop > TOF_DROP_THRESHOLD) {
+      // ---- PRIORITY 3: Drop detected using 250mm ceiling logic (path clear) ----
       digitalWrite(BUZZER_PIN, HIGH); delay(350);
       digitalWrite(BUZZER_PIN, LOW);  delay(450);
     }
