@@ -150,7 +150,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
       break;
     case WStype_DISCONNECTED:
       Serial.printf("[WS] Client %u disconnected\n", num);
-      connectedClients--;
+      if (connectedClients > 0) connectedClients--;
       break;
     default:
       break;
@@ -351,7 +351,7 @@ void loop() {
   char buf[32];
   snprintf(buf, sizeof(buf), "%03d,%03d,%d", distForward, distDrop, fallDetected);
 
-  if (wifiConnected && connectedClients > 0) {
+  if (wifiConnected) {
     webSocket.broadcastTXT((uint8_t*)buf, strlen(buf));
   }
 
