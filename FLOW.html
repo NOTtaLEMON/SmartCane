@@ -109,6 +109,8 @@
     <li><a href="#fig12">Python Dashboard Architecture</a></li>
     <li><a href="#fig13">Firmware Algorithm (Pseudocode)</a></li>
     <li><a href="#fig14">TTS Dispatch Algorithm (Pseudocode)</a></li>
+    <li><a href="#fig15">Full Hardware + Software Architecture</a></li>
+    <li><a href="#fig16">Detailed Circuit / Wiring Diagram</a></li>
   </ol>
 </nav>
 
@@ -606,6 +608,230 @@ graph TB
         tts.speak(friendlyLabel(top.label))
         lastSpokenAt[top.label] = now()
 </pre>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig15">
+  <h2>Figure 15 — Full Hardware + Software Architecture</h2>
+  <p class="caption">Complete integrated view: physical sensors → ESP32 firmware → WiFi/Serial → Android app → user outputs. All modules and data paths in one diagram.</p>
+  <div class="mermaid">
+graph TB
+    subgraph POWER["Power Sub-system"]
+        BAT2(["3.7 V Li-ion"]):::pw
+        SW2["Slide Switch"]:::pw
+        MT2["MT3608 Boost 5 V"]:::pw
+        BAT2 --> SW2 --> MT2
+    end
+    subgraph HARDWARE["ESP32 Sensor Cane"]
+        direction TB
+        subgraph SENS["Sensors"]
+            LDR["TF-Luna LiDAR\nUART2 RX16/TX17\nForward 0–800 cm"]:::sens
+            TOF2["VL53L0X ToF\nI2C 0x29\nDrop detect"]:::sens
+            IMU2["MPU6050 IMU\nI2C 0x68\nFall detect"]:::sens
+        end
+        subgraph FW["ESP32 Firmware v3.4"]
+            FLOOP["Main loop 80 ms"]:::fw
+            FALL2["Fall detector\naMag > 49512"]:::fw
+            PRIO["Buzzer priority\narbitrator"]:::fw
+            PKT2["Packet builder\nfwd,drop,fall"]:::fw
+        end
+        subgraph OUT["Local Outputs"]
+            BUZ2["Active Buzzer"]:::out
+            LCD2["16x2 LCD I2C"]:::out
+            LED2["LED GPIO2"]:::out
+        end
+        subgraph COMM["Communication"]
+            WS2["WebSocket :81"]:::comm
+            SER2["USB Serial 115200"]:::comm
+        end
+        LDR --> FLOOP
+        TOF2 --> FLOOP
+        IMU2 --> FLOOP
+        FLOOP --> FALL2
+        FLOOP --> PRIO
+        FLOOP --> PKT2
+        PRIO --> BUZ2
+        PRIO --> LED2
+        FLOOP --> LCD2
+        PKT2 --> WS2
+        PKT2 --> SER2
+    end
+    subgraph ANDROID["Android SmartCane App"]
+        direction TB
+        subgraph BGSVC["CaneSosService (Foreground)"]
+            WSC["OkHttp WebSocket\nclient"]:::svc
+            PARSE2["Packet parser\n3-field CSV"]:::svc
+            SOSCH["SOS checker\nfall flag + 60 s cooldown"]:::svc
+            GPSC["FusedLocation GPS"]:::svc
+            SMSS["SmsManager\nSOS to all contacts"]:::svc
+            WSC --> PARSE2 --> SOSCH
+            SOSCH -->|fall=1| GPSC --> SMSS
+        end
+        subgraph VISION["CaneVisionActivity"]
+            CAM3["CameraX 30 fps\n320x240"]:::vis
+            INF2["7x TFLite models\nin parallel"]:::vis
+            TTS3["TTS top-1\n2-frame streak"]:::vis
+            CAM3 --> INF2 --> TTS3
+        end
+        subgraph DASH3["PhoneDashboard"]
+            RECV2["BroadcastReceiver"]:::dash
+            UI3["Distance + Zone\nFall banner\nVision results"]:::dash
+            RECV2 --> UI3
+        end
+        PARSE2 -->|LocalBroadcast| RECV2
+        PARSE2 -->|LocalBroadcast| VISION
+    end
+    subgraph PYTHON["Python Tools"]
+        STRL2["Streamlit Dashboard\nSerial or WiFi"]:::py2
+        UV3["Universal_Vision.py\nIP-Webcam + ONNX"]:::py2
+        TRAIN2["YOLOv8 training\n+ TFLite export"]:::py2
+        TRAIN2 -->|float16 .tflite| ANDROID
+    end
+    subgraph USERS["User and Caregivers"]
+        USRA(["User\nwearing cane"]):::usr
+        CARE(["Caregiver\nreceives SMS"]):::usr
+    end
+    MT2 -->|5V| HARDWARE
+    WS2 -->|WebSocket WiFi| ANDROID
+    SER2 -->|USB| PYTHON
+    WS2 -->|WebSocket WiFi| STRL2
+    BUZ2 -->|audio| USRA
+    TTS3 -->|audio| USRA
+    UI3 -->|visual| USRA
+    SMSS -->|SMS + GPS| CARE
+    classDef pw   fill:#fde68a,stroke:#b45309,color:#78350f,stroke-width:2px
+    classDef sens fill:#bfdbfe,stroke:#1d4ed8,color:#1e3a8a,stroke-width:2px
+    classDef fw   fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px
+    classDef out  fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d,stroke-width:2px
+    classDef comm fill:#c7d2fe,stroke:#4338ca,color:#1e1b4b,stroke-width:2px
+    classDef svc  fill:#ede9fe,stroke:#7c3aed,color:#2e1065,stroke-width:2px
+    classDef vis  fill:#fce7f3,stroke:#be185d,color:#831843,stroke-width:2px
+    classDef dash fill:#d1fae5,stroke:#059669,color:#064e3b,stroke-width:2px
+    classDef py2  fill:#ecfdf5,stroke:#10b981,color:#064e3b,stroke-width:2px
+    classDef usr  fill:#f1f5f9,stroke:#475569,color:#0f172a,stroke-width:2px
+    style POWER    fill:#fffbeb,stroke:#d97706,stroke-width:2px
+    style HARDWARE fill:#eff6ff,stroke:#1d4ed8,stroke-width:3px
+    style ANDROID  fill:#faf5ff,stroke:#7c3aed,stroke-width:3px
+    style PYTHON   fill:#f0fdf4,stroke:#16a34a,stroke-width:2px
+    style USERS    fill:#f8fafc,stroke:#94a3b8,stroke-width:2px
+  </div>
+</section>
+
+<!-- ============================================== -->
+<section class="figure" id="fig16">
+  <h2>Figure 16 — Detailed Circuit / Wiring Diagram</h2>
+  <p class="caption">Every wire, bus, power rail and GPIO connection. Shared I2C bus (SDA 21 / SCL 22) carries three devices.</p>
+  <div class="mermaid">
+graph LR
+    subgraph BATT["Battery and Power"]
+        B1(["Li-ion 3.7V\n1000mAh"]):::bat
+        SW3["Slide Switch\nKD2-22D"]:::bat
+        BOOST["MT3608\nBoost Converter\n3.7V → 5V 2A"]:::bat
+        B1 -->|"3.7V+"| SW3
+        SW3 -->|"3.7V switched"| BOOST
+    end
+    subgraph MICRO["ESP32 DevKit V1"]
+        direction TB
+        VIN["VIN (5V in)"]:::mcu
+        EGND["GND"]:::mcu
+        R16["GPIO 16 — RX2"]:::mcu
+        R17["GPIO 17 — TX2"]:::mcu
+        R21["GPIO 21 — SDA"]:::mcu
+        R22["GPIO 22 — SCL"]:::mcu
+        R4["GPIO  4 — Buzzer"]:::mcu
+        R2["GPIO  2 — LED"]:::mcu
+        R33["3.3V out"]:::mcu
+    end
+    subgraph LIDAR["TF-Luna LiDAR (UART2)"]
+        LV["VCC 5V"]:::lidar
+        LG["GND"]:::lidar
+        LRX["RX"]:::lidar
+        LTX["TX"]:::lidar
+    end
+    subgraph TOF3["VL53L0X ToF Sensor (I2C)"]
+        TV["VIN 3.3V"]:::tof
+        TG["GND"]:::tof
+        TSDA["SDA"]:::tof
+        TSCL["SCL"]:::tof
+    end
+    subgraph MPU3["MPU6050 IMU (I2C)"]
+        MV["VCC 3.3V"]:::imu
+        MG["GND"]:::imu
+        MSDA["SDA"]:::imu
+        MSCL["SCL"]:::imu
+        MAD["AD0 → GND"]:::imu
+    end
+    subgraph LCD3["16x2 LCD with I2C backpack"]
+        LDV["VCC 5V"]:::lcd
+        LDG["GND"]:::lcd
+        LDSDA["SDA"]:::lcd
+        LDSCL["SCL"]:::lcd
+    end
+    subgraph BUZ3["Active Buzzer"]
+        BZ["+ pin"]:::buz
+        BZG["− pin"]:::buz
+    end
+    subgraph LED3["Status LED + 220Ω"]
+        LP["Anode"]:::led
+        LN["Cathode"]:::led
+    end
+    BOOST -->|"5V out"| VIN
+    BOOST -->|"GND"| EGND
+    VIN -->|"5V"| LV
+    VIN -->|"5V"| LDV
+    R33 -->|"3.3V"| TV
+    R33 -->|"3.3V"| MV
+    EGND --- LG
+    EGND --- TG
+    EGND --- MG
+    EGND --- LDG
+    EGND --- BZG
+    EGND --- LN
+    MAD --> EGND
+    R16 -->|"RX2 ← TX-Luna"| LTX
+    R17 -->|"TX2 → RX-Luna"| LRX
+    R21 -->|"SDA bus"| TSDA
+    R21 -->|"SDA bus"| MSDA
+    R21 -->|"SDA bus"| LDSDA
+    R22 -->|"SCL bus"| TSCL
+    R22 -->|"SCL bus"| MSCL
+    R22 -->|"SCL bus"| LDSCL
+    R4  -->|"PWM"| BZ
+    R2  -->|"220Ω"| LP
+    classDef bat   fill:#fde68a,stroke:#b45309,color:#78350f,stroke-width:2px
+    classDef mcu   fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a,stroke-width:2px
+    classDef lidar fill:#dcfce7,stroke:#15803d,color:#14532d,stroke-width:2px
+    classDef tof   fill:#f0fdf4,stroke:#15803d,color:#14532d,stroke-width:2px
+    classDef imu   fill:#fce7f3,stroke:#be185d,color:#831843,stroke-width:2px
+    classDef lcd   fill:#ede9fe,stroke:#7c3aed,color:#2e1065,stroke-width:2px
+    classDef buz   fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px
+    classDef led   fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
+    style BATT  fill:#fffbeb,stroke:#d97706,stroke-width:2px
+    style MICRO fill:#eff6ff,stroke:#1d4ed8,stroke-width:3px
+    style LIDAR fill:#f0fdf4,stroke:#16a34a,stroke-width:2px
+    style TOF3  fill:#f0fdf4,stroke:#16a34a,stroke-width:2px
+    style MPU3  fill:#fdf4ff,stroke:#a21caf,stroke-width:2px
+    style LCD3  fill:#faf5ff,stroke:#7c3aed,stroke-width:2px
+    style BUZ3  fill:#fffbeb,stroke:#d97706,stroke-width:2px
+    style LED3  fill:#fefce8,stroke:#ca8a04,stroke-width:2px
+  </div>
+  <table class="circuit" style="margin-top:14px;">
+    <thead>
+      <tr><th>Wire / Connection</th><th>From</th><th>To</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>5V power</td><td>MT3608 Vout+</td><td>ESP32 VIN, TF-Luna VCC, LCD VCC</td><td>Boost output 5V @ 2A max</td></tr>
+      <tr><td>3.3V power</td><td>ESP32 3V3 pin</td><td>VL53L0X VIN, MPU6050 VCC</td><td>ESP32 onboard LDO</td></tr>
+      <tr><td>GND</td><td>MT3608 GND</td><td>All GND pins + MPU AD0</td><td>Common ground</td></tr>
+      <tr><td>UART2 RX</td><td>ESP32 GPIO16</td><td>TF-Luna TX</td><td>115200 baud, 9-byte frame</td></tr>
+      <tr><td>UART2 TX</td><td>ESP32 GPIO17</td><td>TF-Luna RX</td><td>Config commands (optional)</td></tr>
+      <tr><td>I2C SDA</td><td>ESP32 GPIO21</td><td>VL53L0X SDA, MPU6050 SDA, LCD SDA</td><td>100 kHz, shared bus, 4.7kΩ pull-up</td></tr>
+      <tr><td>I2C SCL</td><td>ESP32 GPIO22</td><td>VL53L0X SCL, MPU6050 SCL, LCD SCL</td><td>100 kHz, shared bus, 4.7kΩ pull-up</td></tr>
+      <tr><td>Buzzer</td><td>ESP32 GPIO4</td><td>Active buzzer +pin</td><td>Buzzer − to GND</td></tr>
+      <tr><td>LED</td><td>ESP32 GPIO2</td><td>LED anode via 220Ω resistor</td><td>LED cathode to GND</td></tr>
+      <tr><td>I2C addresses</td><td colspan="2">VL53L0X=0x29, MPU6050=0x68, LCD=0x27</td><td>All unique, no conflict</td></tr>
+    </tbody>
+  </table>
 </section>
 
 </div>
