@@ -75,6 +75,8 @@
   @media print {
     body { background: white; padding: 0; }
     .figure { break-inside: avoid; box-shadow: none; border: 1px solid #ccc; }
+    #fig16 { page-break-before: always; }
+    @page fig16-page { size: A4 landscape; }
   }
 </style>
 </head>
@@ -715,55 +717,77 @@ graph TB
 <section class="figure" id="fig16">
   <h2>Figure 16 — Detailed Circuit / Wiring Diagram</h2>
   <p class="caption">Every wire, bus, power rail and GPIO connection. Shared I2C bus (SDA 21 / SCL 22) carries three devices.</p>
-  <div class="mermaid" style="max-width:900px;margin:0 auto;">
+  <div class="mermaid">
 graph LR
-    subgraph PWR["Power Rail"]
-        BAT(["Li-ion\n3.7V"]):::bat
-        SWX["Slide\nSwitch"]:::bat
-        BST["MT3608\n3.7V→5V"]:::bat
-        BAT -->|"3.7V"| SWX --> BST
+    subgraph PWR["⚡ Power Rail"]
+        BAT(["Li-ion\n3.7 V\n1000 mAh"]):::bat
+        SW(["Slide Switch\nKD2-22D"]):::sw
+        BST["MT3608\nBoost Converter\n3.7 V → 5 V · 2 A"]:::boost
+        BAT -->|"3.7 V"| SW -->|"switched"| BST
     end
-    ESP["ESP32 DevKit V1\n─────────────────\nVIN  · GND  · 3V3\nGPIO16 RX2  · GPIO17 TX2\nGPIO21 SDA  · GPIO22 SCL\nGPIO4 Buzzer · GPIO2 LED"]:::mcu
-    subgraph SENS["Sensors and Peripherals"]
-        LUN["TF-Luna LiDAR\nUART2 · 5V · 115200"]:::lidar
-        TOF["VL53L0X ToF\nI2C 0x29 · 3.3V"]:::tof
-        IMU["MPU6050 IMU\nI2C 0x68 · 3.3V\nAD0 → GND"]:::imu
-        LCD["16×2 LCD\nI2C 0x27 · 5V"]:::lcd
-        BLX["Buzzer + LED\nGPIO4 · GPIO2+220Ω"]:::buz
+
+    subgraph MCU["🔲 ESP32 DevKit V1"]
+        direction TB
+        VIN["VIN · 5 V in"]:::mcu
+        V33["3V3 · LDO out"]:::mcu
+        GND0["GND · common"]:::mcu
+        P16["GPIO 16 · RX2"]:::mcu
+        P17["GPIO 17 · TX2"]:::mcu
+        P21["GPIO 21 · SDA"]:::mcu
+        P22["GPIO 22 · SCL"]:::mcu
+        P4["GPIO 4 · Buzzer"]:::mcu
+        P2["GPIO 2 · LED"]:::mcu
     end
-    BST  -->|"5V → VIN"| ESP
-    ESP  -->|"UART2 TX17/RX16"| LUN
-    ESP  -->|"I2C SDA21/SCL22"| TOF
-    ESP  -->|"I2C SDA21/SCL22"| IMU
-    ESP  -->|"I2C SDA21/SCL22"| LCD
-    ESP  -->|"GPIO4 / GPIO2"| BLX
+
+    subgraph UART_BUS["UART2 Bus · 115200 baud"]
+        LUN["TF-Luna LiDAR\nForward range\n0 – 800 cm · 5 V"]:::lidar
+    end
+
+    subgraph I2C_BUS["I2C Bus · 100 kHz · 4.7 kΩ pull-up · SDA/SCL"]
+        TOF["VL53L0X ToF\nDrop detection\nAddr 0x29 · 3.3 V"]:::tof
+        IMU["MPU6050 IMU\nFall detection\nAddr 0x68 · 3.3 V\nAD0 → GND"]:::imu
+        LCD["16×2 LCD\nStatus display\nAddr 0x27 · 5 V"]:::lcd
+    end
+
+    subgraph GPIO_OUT["GPIO Outputs"]
+        BUZ["Active Buzzer\nGPIO 4 · PWM\n− → GND"]:::buz
+        LED["Status LED\n220 Ω series\nGPIO 2\ncathode → GND"]:::led
+    end
+
+    BST  -->|"5 V"| VIN
+    BST  -->|"5 V"| LUN
+    BST  -->|"5 V"| LCD
+    BST  -->|"GND"| GND0
+    V33  -->|"3.3 V"| TOF
+    V33  -->|"3.3 V"| IMU
+    P16  -->|"RX2 ← Luna TX"| LUN
+    P17  -->|"TX2 → Luna RX"| LUN
+    P21  -->|"SDA"| TOF
+    P21  -->|"SDA"| IMU
+    P21  -->|"SDA"| LCD
+    P22  -->|"SCL"| TOF
+    P22  -->|"SCL"| IMU
+    P22  -->|"SCL"| LCD
+    P4   -->|"PWM drive"| BUZ
+    P2   -->|"220 Ω"| LED
+
     classDef bat   fill:#fde68a,stroke:#b45309,color:#78350f,stroke-width:2px
+    classDef sw    fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
+    classDef boost fill:#fed7aa,stroke:#c2410c,color:#7c2d12,stroke-width:2px
     classDef mcu   fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a,stroke-width:2px
-    classDef lidar fill:#dcfce7,stroke:#15803d,color:#14532d,stroke-width:2px
-    classDef tof   fill:#f0fdf4,stroke:#15803d,color:#14532d,stroke-width:2px
+    classDef lidar fill:#bbf7d0,stroke:#15803d,color:#14532d,stroke-width:2px
+    classDef tof   fill:#dcfce7,stroke:#15803d,color:#14532d,stroke-width:2px
     classDef imu   fill:#fce7f3,stroke:#be185d,color:#831843,stroke-width:2px
     classDef lcd   fill:#ede9fe,stroke:#7c3aed,color:#2e1065,stroke-width:2px
     classDef buz   fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px
-    style PWR  fill:#fffbeb,stroke:#d97706,stroke-width:2px
-    style SENS fill:#f0fdf4,stroke:#16a34a,stroke-width:2px
+    classDef led   fill:#fefce8,stroke:#ca8a04,color:#713f12,stroke-width:2px
+
+    style PWR       fill:#fffbeb,stroke:#d97706,stroke-width:2px
+    style MCU       fill:#eff6ff,stroke:#1d4ed8,stroke-width:3px
+    style UART_BUS  fill:#f0fdf4,stroke:#16a34a,stroke-width:2px
+    style I2C_BUS   fill:#faf5ff,stroke:#7c3aed,stroke-width:2px
+    style GPIO_OUT  fill:#fff7ed,stroke:#ea580c,stroke-width:2px
   </div>
-  <table class="circuit" style="margin-top:14px;font-size:12px;">
-    <thead>
-      <tr><th>Signal</th><th>From (ESP32)</th><th>To (Peripheral)</th><th>Spec / Notes</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>5V power</td><td>MT3608 Vout → ESP32 VIN</td><td>TF-Luna VCC, LCD VCC</td><td>Boost 5V @ 2A max</td></tr>
-      <tr><td>3.3V power</td><td>ESP32 3V3 pin</td><td>VL53L0X VIN, MPU6050 VCC</td><td>ESP32 onboard LDO</td></tr>
-      <tr><td>GND (common)</td><td>MT3608 GND</td><td>All GND pins, MPU AD0</td><td>Single ground plane</td></tr>
-      <tr><td>UART2 RX2</td><td>GPIO 16</td><td>TF-Luna TX</td><td>115200 baud, 9-byte frame</td></tr>
-      <tr><td>UART2 TX2</td><td>GPIO 17</td><td>TF-Luna RX</td><td>Config (optional)</td></tr>
-      <tr><td>I2C SDA</td><td>GPIO 21</td><td>VL53L0X, MPU6050, LCD SDA</td><td>100 kHz · 4.7 kΩ pull-up</td></tr>
-      <tr><td>I2C SCL</td><td>GPIO 22</td><td>VL53L0X, MPU6050, LCD SCL</td><td>100 kHz · 4.7 kΩ pull-up</td></tr>
-      <tr><td>Buzzer PWM</td><td>GPIO 4</td><td>Active buzzer +pin</td><td>Buzzer − → GND</td></tr>
-      <tr><td>Status LED</td><td>GPIO 2</td><td>LED anode via 220 Ω</td><td>LED cathode → GND</td></tr>
-      <tr><td>I2C addresses</td><td colspan="2">VL53L0X = 0x29 · MPU6050 = 0x68 · LCD = 0x27</td><td>No address conflict</td></tr>
-    </tbody>
-  </table>
 </section>
 
 </div>
