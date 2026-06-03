@@ -17,14 +17,7 @@
     margin: 0; padding: 24px 16px; line-height: 1.5;
   }
   .container { max-width: 1200px; margin: 0 auto; }
-  header {
-    border-bottom: 3px solid var(--primary);
-    padding-bottom: 16px; margin-bottom: 24px;
-  }
-  header h1 {
-    margin: 0; color: var(--primary); font-size: 28px; font-weight: 700;
-  }
-  header p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+  header { display: none; }
   nav {
     background: var(--card); border: 1px solid var(--line);
     border-radius: 8px; padding: 14px 18px; margin-bottom: 28px;
@@ -43,10 +36,11 @@
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
   .figure h2 {
-    margin: 0 0 4px; font-size: 20px; color: var(--primary);
+    margin: 0 0 12px; font-size: 20px; color: var(--primary);
+    font-family: 'Bookman Old Style', 'URW Bookman', 'Palatino Linotype', Palatino, Georgia, serif;
   }
   .figure .caption {
-    color: var(--muted); font-size: 13px; margin-bottom: 16px;
+    display: none;
   }
   .mermaid {
     background: #fff;
@@ -77,10 +71,10 @@
   table.circuit tr:nth-child(even) td { background: #f1f5f9; }
   code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 0.9em; }
 
+  nav { display: none; }
   @media print {
     body { background: white; padding: 0; }
     .figure { break-inside: avoid; box-shadow: none; border: 1px solid #ccc; }
-    nav { display: none; }
   }
 </style>
 </head>
